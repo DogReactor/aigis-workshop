@@ -1,14 +1,22 @@
-import { Module } from '@nestjs/common';
-import { SectionSchema, FileMetaSchema } from './assetsdb.schema';
+import { Module, HttpModule } from '@nestjs/common';
+import { CoreModule } from '../core/core.module';
+import { AssetsController } from './assets.controller';
 import { AssetsService } from './assets.service';
-import { MongooseModule } from '@nestjs/mongoose';
+import { AssetsProviders } from './assets.provider';
 
 @Module({
-    imports: [MongooseModule.forFeature([
-        { name: 'Section', schema: SectionSchema },
-        { name: 'FileMeta', schema: FileMetaSchema, collection: 'fileMeta' },
-    ])],
-    providers: [AssetsService],
-    exports: [AssetsService],
+    imports: [
+        CoreModule,
+        HttpModule,
+    ],
+    providers: [
+        AssetsService,
+        ...AssetsProviders,
+    ],
+    exports: [
+        AssetsService,
+        ...AssetsProviders,
+    ],
+    controllers: [AssetsController],
 })
 export class AssetsModule { }
