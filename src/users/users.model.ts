@@ -36,3 +36,10 @@ export class UserSessionDto {
     _id: string;
     ip?: string;
 }
+
+export enum UserAuthority { Translator, Corrector, Embellisher, Administor }
+
+export class UserAuthorities {
+    username: string;
+    authorities: Array<UserAuthority>;
+}

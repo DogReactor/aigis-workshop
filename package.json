@@ -27,6 +27,7 @@
     "aigis-fuel": "^0.2.4",
     "class-transformer": "^0.1.10",
     "class-validator": "^0.9.1",
+    "compression": "^1.7.3",
     "jsonwebtoken": "^8.3.0",
     "mongoose": "^5.3.4",
     "reflect-metadata": "^0.1.12",

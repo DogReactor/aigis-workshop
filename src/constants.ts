@@ -16,6 +16,8 @@ export class BadRequestMessage {
 
 export class Constants {
     public static get UserModelToken() { return 'UserModelToken'; }
+    public static get FileMetaModelToken() { return 'FilesMetaModelToken'; }
+    public static get FilesModelToken() { return 'FilesModelToken'; }
     public static get DbConnectionToken() { return 'DbConnectionToken'; }
 
     public static get PASSWORD_ERROR() { return '密码错误'; }
@@ -27,4 +29,5 @@ export class Constants {
 
     public static get NO_TOKEN() { return '没有Token'; }
     public static get TOKEN_ERROR() { return 'Token错误'; }
+
 }
