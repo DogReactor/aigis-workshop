@@ -1,5 +1,5 @@
 import { Document, Model } from 'mongoose';
-import { FileInfo, Commit, Section } from './service.interface';
+import { FileInfo, Commit, Section, ContractProposal } from './service.interface';
 import { CreateSectionDto, CreateFileDto, CreateCommitDto, CreateFileInfoDto } from '../dto/assets.dto';
 
 export interface DBFileInfo extends FileInfo{
@@ -20,7 +20,7 @@ export interface DBCommit extends Document, Commit { }
 
 export interface DBSection extends Document, Section {
   commits: Array<DBCommit>;
-  commit(work: CreateCommitDto);
+  contract(proposal: ContractProposal): boolean;
 }
 
 export interface DBFile extends Document {

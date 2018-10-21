@@ -1,5 +1,5 @@
 import { UserAuthorities } from '../../users/users.model';
-import { WorkModel, SectionStatus } from '../../constants';
+import { WorkModel, SectionStatus, ContractedMethods } from '../../constants';
 
 export interface UpdateCommand {
     readonly fileListMark: string;
@@ -16,8 +16,13 @@ export interface FileInfo {
     readonly published: boolean;
 }
 
+export interface RequestFileInfo {
+    readonly meta: string;
+    readonly filesInfo: Array<FileInfo>;
+}
+
 export interface FileRequest {
-    file: string;
+    name: string;
     meta: string;
     user: UserAuthorities;
     model: WorkModel;
@@ -40,12 +45,28 @@ export interface Section{
     commits: Array<Commit>;
     lastUpdated: string;
     desc: string;
-    contractor: string;
+    contractInfo: {
+        contractor: string;
+        time: string;
+    };
 }
 
 export interface SubmitWork {
-    text: string;
+    works: Array<{ hash: string, text: string }>;
+    type: SectionStatus;
+    name: string;
+    meta: string;
     time: string;
     author: UserAuthorities;
 }
 
+export interface ContractProposal {
+    method: ContractedMethods;
+    number?: number;
+    hashes?: Array<string>;
+    name: string;
+    meta: string;
+    model: WorkModel;
+    author: UserAuthorities;
+    time: string;
+}

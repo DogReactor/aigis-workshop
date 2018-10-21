@@ -25,7 +25,6 @@ export async function getFileList(fileListMark, httpService: HttpService): Promi
                 const d = line.split(',');
                 fileList.set(d[4], '/' + d[0] + '/' + d[1]);
             });
-
         } catch (err) {
             console.log('Err in fetching files list:\n', err);
         }
@@ -68,9 +67,10 @@ export function splitToSections(textInfo: { name: string, text: string }): Array
 
 export function attachRemarks(title: string, sections: Array<CreateSectionDto>, remarks: any): Array<CreateSectionDto> {
 
-    const remarkedSections = sections.map(s => s);
+    let remarkedSections = null;
     if (remarks) {
         if (title === 'StatusText' && remarks.hasOwnProperty('CardsInfo')) {
+            remarkedSections = sections.map(s => s);
             remarks.CardsInfo.Flavor.forEach(e => {
                 for (let i = e.StartIndex; i < e.EndIndex; ++i) {
                     remarkedSections[i].desc = 'Flavor talk ' + (i - e.StartIndex + 1) + ' of ' + e.Name;
@@ -78,7 +78,7 @@ export function attachRemarks(title: string, sections: Array<CreateSectionDto>, 
             });
         }
     }
-    return remarkedSections;
+    return remarkedSections || sections;
 }
 
 export async function updateDoc(file: CreateFileDto, meta: DBFileMeta, filesModel: DBFileModel, timestamp: string): Promise<CreateFileInfoDto> {
@@ -181,7 +181,7 @@ async function takeText(file: string, rootDir: string): Promise<Array<{ name: st
                 checkAndAppend(fbasename, fs.readFileSync(fileDir, 'utf8'));
             }
         }
-        fs.remove(fileDir);
+        // fs.remove(fileDir);
     } catch (err) {
         console.log('Err in taking texts\n', err);
         return Promise.reject(err);

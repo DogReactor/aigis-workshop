@@ -1,6 +1,7 @@
 import * as crypto from 'crypto';
 import * as path from 'path';
 import { SectionStatus } from '../../constants';
+import { SubmitWork } from '../interface/service.interface';
 
 export class CreateFileInfoDto {
     sectionsNumber: number;
@@ -25,6 +26,7 @@ export class CreateFileMetaDto {
     ) { }
 }
 
+export const StoreKeys = ['raw', 'translated', 'corrected', 'embellished'];
 export class CreateFileDto {
     name: string;
     meta: string;
@@ -45,8 +47,17 @@ export class CreateCommitDto {
     author: string;
     id: string;
     time: string;
-    text: string;
-    kind: SectionStatus = SectionStatus.Raw;
+    type: SectionStatus = SectionStatus.Raw;
+    constructor(work: SubmitWork, public text: string) {
+        this.author = work.author.username;
+        this.time = work.time;
+        this.type = work.type;
+        const md5 = crypto.createHash('md5');
+        md5.update(this.author);
+        md5.update(text);
+        md5.update(this.time);
+        this.id = md5.digest('hex');
+    }
 }
 
 export class CreateSectionDto{
@@ -55,7 +66,13 @@ export class CreateSectionDto{
     commits: Array<CreateCommitDto> = [];
     lastUpdated: string;
     desc: string = '';
-    contractor: string = '';
+    contractInfo: {
+        contractor: string;
+        time: string;
+    } = {
+        contractor: '',
+        time: '',
+    };
     constructor(public inFileId: number,
                 public origin: string,
                 public superFile: string) {

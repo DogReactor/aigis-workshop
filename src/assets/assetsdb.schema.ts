@@ -1,14 +1,15 @@
 
 import * as mongoose from 'mongoose';
-import { CreateSectionDto, CreateFileInfoDto, CreateCommitDto, CreateFileDto } from './dto/assets.dto';
+import { CreateSectionDto, CreateFileInfoDto, CreateCommitDto, CreateFileDto, StoreKeys } from './dto/assets.dto';
 import { DBSection } from './interface/assets.interface';
+import { ContractProposal } from './interface/service.interface';
 
 export const CommitSchema = new mongoose.Schema({
     author: String,
     id: String,
     time: String,
     text: String,
-    kind: Number,
+    type: Number,
 });
 export const SectionSchema = new mongoose.Schema({
     inFileId: Number,
@@ -19,13 +20,20 @@ export const SectionSchema = new mongoose.Schema({
     commits: [CommitSchema],
     lastUpdated: String,
     desc: String,
-    contractor: String,
-
+    contractInfo: {
+        contractor: String,
+        time: String,
+    },
 });
 
-SectionSchema.methods.commit = function(work: CreateCommitDto) {
-    this.commits.push(work);
-};
+SectionSchema.methods.contract = function(proposal: ContractProposal): boolean {
+    if (!this.contractInfo.contractor) {
+        this.set('contractInfo.contractor', proposal.author.username);
+        this.set('contractInfo.time', proposal.time);
+        return true;
+    }
+    return false;
+}
 
 export const FileSchema = new mongoose.Schema({
     name: String,
@@ -51,8 +59,7 @@ FileSchema.statics.createFile = async function(file: CreateFileDto, time?: strin
 
 FileSchema.methods.search = function(section: CreateSectionDto, attr: string) {
     if (this.hasOwnProperty(attr) && section.hasOwnProperty(attr)) {
-        const stores = ['raw', 'translated', 'corrected', 'embellished'];
-        for (const store of stores) {
+        for (const store of StoreKeys) {
             const i = this[store].findIndex(s => s[attr] === section[attr]);
             if (i !== -1) {
                 return { loc: store, no: i };
