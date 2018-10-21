@@ -2,7 +2,7 @@ import { Injectable, HttpService, Inject } from '@nestjs/common';
 import { Model } from 'mongoose';
 import * as fs from 'fs-extra';
 import { Constants, WorkModel, ContractedMethods } from '../constants';
-import { FileRequest, SubmitWork, ContractProposal } from './interface/service.interface';
+import { FileRequest, SubmitWork, ContractProposal, Section } from './interface/service.interface';
 import { getFileList, fetchFile, splitToSections, attachRemarks, updateDoc } from './operations/update.operation';
 import { CmUpdateDto } from './dto/communication.dto';
 import { CreateFileMetaDto, CreateFileDto, StoreKeys, CreateCommitDto } from './dto/assets.dto';
@@ -15,7 +15,7 @@ export class AssetsService {
         @Inject(Constants.FileMetaModelToken) private readonly fileMetaModel: Model<DBFileMeta>,
         @Inject(Constants.FilesModelToken) private readonly filesModel: DBFileModel,
     ) { }
-    async getFile(fileRequest: FileRequest): Promise<Array<DBSection>> {
+    async getFile(fileRequest: FileRequest): Promise<Array<Section>> {
         const file = await this.filesModel.findOne({ meta: fileRequest.meta, name: fileRequest.name }).exec();
         let sections: Array<DBSection> = [];
         // To Do 鉴权

@@ -33,7 +33,7 @@ export interface Commit{
     readonly commitId: string;
     readonly time: string;
     readonly text: string;
-    readonly kind: SectionStatus;
+    readonly type: SectionStatus;
 }
 
 export interface Section{
