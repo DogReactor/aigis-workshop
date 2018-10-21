@@ -9,6 +9,7 @@
     "rules": {
         "no-bitwise": false,
         "eofline": false,
+        "only-arrow-functions": false,
         "quotemark": [
             true,
             "single"

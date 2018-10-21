@@ -4,7 +4,7 @@ import * as crypto from 'crypto';
 import { HttpService } from '@nestjs/common';
 import { map } from 'rxjs/operators';
 import { parseAL } from 'aigis-fuel';
-import { CreateFileMetaDto, RawTextInfoDto, TextSectionDto } from '../dto/assets.dto';
+import { CreateFileMetaDto, RawTextInfoDto, CreateSectionDto } from '../dto/assets.dto';
 
 export async function getFileList(fileListMark, httpService: HttpService): Promise<Map<string, string>> {
     const fileListPostfix = {
@@ -54,13 +54,13 @@ async function downloadAsset(filePath, httpService: HttpService): Promise<Buffer
     return httpService.request(reqOption).pipe(map(r => r.data)).toPromise();
 }
 
-export function splitToSections(textInfo: RawTextInfoDto, remarks: object): Array<TextSectionDto> {
+export function splitToSections(textInfo: RawTextInfoDto, remarks: object): Array<CreateSectionDto> {
     const sectionsText = referSplitRule(textInfo.meta)(textInfo.text);
-    const sections: Array<TextSectionDto> = [];
+    const sections: Array<CreateSectionDto> = [];
     sectionsText.forEach((originText, index) => {
         const md5 = crypto.createHash('md5');
         md5.update(originText);
-        const section = new TextSectionDto();
+        const section = new CreateSectionDto();
         section.hash = md5.digest('hex');
         section.inFileId = index;
         section.origin = originText;
@@ -72,7 +72,7 @@ export function splitToSections(textInfo: RawTextInfoDto, remarks: object): Arra
     return sections;
 }
 
-function attatchRemakrs(title: string, remarks: any, sections: Array<TextSectionDto>) {
+function attatchRemakrs(title: string, remarks: any, sections: Array<CreateSectionDto>) {
     if (title === 'StatusText' && remarks.hasOwnProperty('CardsInfo')) {
         remarks.CardsInfo.Flavor.forEach(e => {
             for (let i = e.StartIndex; i < e.EndIndex; ++i) {

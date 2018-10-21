@@ -1,12 +1,12 @@
 import { Controller, Get, Post, Body, Res } from '@nestjs/common';
-import { UpdateCommandDto, FileRequestCommandDto } from './dto/communication.dto';
+import { CmUpdateDto, CmFileRequestDto } from './dto/communication.dto';
 import { AssetsService } from './assets.service';
 @Controller('assets')
 export class AssetsController {
     constructor(
         private readonly assetsService: AssetsService) { }
     @Post('update')
-    async updateFiles(@Body() updateCommand: UpdateCommandDto) {
+    async updateFiles(@Body() updateCommand: CmUpdateDto) {
         return this.assetsService.updateWeekly(updateCommand);
     }
 
@@ -16,12 +16,12 @@ export class AssetsController {
     }
 
     @Post('request_file')
-    async getFile(@Body() fileRequest: FileRequestCommandDto) {
+    async getFile(@Body() fileRequest: CmFileRequestDto) {
         return this.assetsService.getFile();
     }
 
     @Post('submit_work')
-    async submitWork(@Body() fileRequest: FileRequestCommandDto) {
+    async submitWork(@Body() fileRequest: CmFileRequestDto) {
         return this.assetsService.submitWork();
     }
 }
