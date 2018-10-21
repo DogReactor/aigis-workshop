@@ -1,7 +1,6 @@
 import { Document, Model } from 'mongoose';
-import { SectionStatus } from '../../constants';
 import { FileInfo, Commit, Section } from './service.interface';
-import { CreateSectionDto, CreateFileInfoDto, CreateCommitDto } from '../dto/assets.dto';
+import { CreateSectionDto, CreateFileDto, CreateCommitDto, CreateFileInfoDto } from '../dto/assets.dto';
 
 export interface DBFileInfo extends FileInfo{
   filePath: string;
@@ -13,8 +12,8 @@ export interface DBFileMeta extends Document {
   readonly desc: string;
   readonly reincarnation: boolean;
   filePaths: object;
-  fileInfos: Array<DBFileInfo>;
-  updateInfo(newInfo: DBFileInfo);
+  filesInfo: Array<DBFileInfo>;
+  updateInfo(newInfo: CreateFileInfoDto);
 }
 
 export interface DBCommit extends Document, Commit { }
@@ -40,4 +39,8 @@ export interface DBFile extends Document {
   getFileInfo();
   addSections(section: Array<CreateSectionDto>);
   resetSection(token: object, section: CreateSectionDto);
+}
+
+export interface DBFileModel extends Model<DBFile> {
+  createFile(file: CreateFileDto, time?: string);
 }

@@ -1,10 +1,11 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-import * as crypto from 'crypto';
+
 import { HttpService } from '@nestjs/common';
 import { map } from 'rxjs/operators';
 import { parseAL } from 'aigis-fuel';
-import { CreateFileMetaDto, RawTextInfoDto, CreateSectionDto } from '../dto/assets.dto';
+import { CreateSectionDto, CreateFileDto, CreateFileInfoDto } from '../dto/assets.dto';
+import { DBFileMeta, DBFileModel } from 'assets/interface/assets.interface';
 
 export async function getFileList(fileListMark, httpService: HttpService): Promise<Map<string, string>> {
     const fileListPostfix = {
@@ -13,34 +14,37 @@ export async function getFileList(fileListMark, httpService: HttpService): Promi
     };
     const fileList: Map<string, string> = new Map();
     for (const flag of Object.keys(fileListPostfix)) {
-        const fileListPath = fileListMark + fileListPostfix[flag];
-        const csvBuffer = await downloadAsset(fileListPath, httpService);
-        const key = 0xea ^ 0x30;
-        let csvString = '';
-        csvBuffer.forEach(b => csvString += String.fromCharCode(b ^ key));
-        const csvData = csvString.split('\n');
-        csvData.forEach(line => {
-            const d = line.split(',');
-            fileList.set(d[4], '/' + d[0] + '/' + d[1]);
-        });
+        try {
+            const fileListPath = fileListMark + fileListPostfix[flag];
+            const csvBuffer = await downloadAsset(fileListPath, httpService);
+            const key = 0xea ^ 0x30;
+            let csvString = '';
+            csvBuffer.forEach(b => csvString += String.fromCharCode(b ^ key));
+            const csvData = csvString.split('\n');
+            csvData.forEach(line => {
+                const d = line.split(',');
+                fileList.set(d[4], '/' + d[0] + '/' + d[1]);
+            });
+
+        } catch (err) {
+            console.log('Err in fetching files list:\n', err);
+        }
     }
     return Promise.resolve(fileList);
 }
 
-export async function fetchFiles(meta: CreateFileMetaDto, httpService: HttpService) {
+export async function fetchFile(file: string, refPath: string, httpService: HttpService): Promise<Array<{ name: string, text: string }>> {
     const rootDir = './raw_repo';
     fs.ensureDirSync(rootDir);
     try {
-        for (const f of Object.keys(meta.filePaths)) {
-            const refPath = meta.filePaths[f];
-            const locatedDir = path.join(rootDir, f);
-            const fileBuffer = await downloadAsset(refPath, httpService);
-            parseAL(fileBuffer).Save(locatedDir);
-        }
-        return Promise.resolve(takeText(meta, rootDir));
+        const locatedDir = path.join(rootDir, file);
+        const fileBuffer = await downloadAsset(refPath, httpService);
+        parseAL(fileBuffer).Save(locatedDir);
+        const texts = await takeText(file, rootDir);
+        return Promise.resolve(texts);
     } catch (err) {
-        console.log('Failed in fetching: ', err.Error);
-        return Promise.reject([]);
+        console.log('Failed in fetching: ', err);
+        return Promise.reject(err);
     }
 }
 
@@ -54,40 +58,70 @@ async function downloadAsset(filePath, httpService: HttpService): Promise<Buffer
     return httpService.request(reqOption).pipe(map(r => r.data)).toPromise();
 }
 
-export function splitToSections(textInfo: RawTextInfoDto, remarks: object): Array<CreateSectionDto> {
-    const sectionsText = referSplitRule(textInfo.meta)(textInfo.text);
-    const sections: Array<CreateSectionDto> = [];
-    sectionsText.forEach((originText, index) => {
-        const md5 = crypto.createHash('md5');
-        md5.update(originText);
-        const section = new CreateSectionDto();
-        section.hash = md5.digest('hex');
-        section.inFileId = index;
-        section.origin = originText;
-        section.superFile = textInfo.name;
-        section.desc = '';
-        sections.push(section);
-    });
-    attatchRemakrs(textInfo.meta, remarks, sections);
+export function splitToSections(textInfo: { name: string, text: string }): Array<CreateSectionDto> {
+    const meta = path.dirname(textInfo.name);
+    const sectionsText = referSplitRule(meta)(textInfo.text);
+    const sections: Array<CreateSectionDto>
+        = sectionsText.map((originText, index) => new CreateSectionDto(index + 1, originText, textInfo.name));
     return sections;
 }
 
-function attatchRemakrs(title: string, remarks: any, sections: Array<CreateSectionDto>) {
-    if (title === 'StatusText' && remarks.hasOwnProperty('CardsInfo')) {
-        remarks.CardsInfo.Flavor.forEach(e => {
-            for (let i = e.StartIndex; i < e.EndIndex; ++i) {
-                sections[i].desc = 'Flavor talk ' + (i - e.StartIndex + 1) + ' of ' + e.Name;
+export function attachRemarks(title: string, sections: Array<CreateSectionDto>, remarks: any): Array<CreateSectionDto> {
+
+    const remarkedSections = sections.map(s => s);
+    if (remarks) {
+        if (title === 'StatusText' && remarks.hasOwnProperty('CardsInfo')) {
+            remarks.CardsInfo.Flavor.forEach(e => {
+                for (let i = e.StartIndex; i < e.EndIndex; ++i) {
+                    remarkedSections[i].desc = 'Flavor talk ' + (i - e.StartIndex + 1) + ' of ' + e.Name;
+                }
+            });
+        }
+    }
+    return remarkedSections;
+}
+
+export async function updateDoc(file: CreateFileDto, meta: DBFileMeta, filesModel: DBFileModel, timestamp: string): Promise<CreateFileInfoDto> {
+    try {
+        let doc = await filesModel.findOne({ meta: file.meta, name: file.name }).exec();
+        if (doc) {
+            doc.lastUpdated = timestamp;
+            for (const sec of file.raw) {
+                sec.lastUpdated = timestamp;
+                const secLoc = meta.reincarnation ? doc.search(sec, 'hash') : doc.search(sec, 'inFileId');
+                const contraposition = doc.getSection(secLoc);
+                if (!contraposition) {
+                    doc.addSections([sec]);
+                }
+                else if (contraposition.hash === sec.hash && contraposition.inFileId === sec.inFileId) {
+                    contraposition.lastUpdated = timestamp;
+                    continue;
+                }
+                else if (contraposition.hash === sec.hash && contraposition.inFileId !== sec.inFileId && meta.reincarnation) {
+                    contraposition.inFileId = sec.inFileId;
+                    contraposition.lastUpdated = timestamp;
+                }
+                else if (contraposition.hash !== sec.hash && contraposition.inFileId === sec.inFileId && !meta.reincarnation) {
+                    doc.resetSection(secLoc, sec);
+                }
+                doc.published = false;
             }
-        });
+            doc.save();
+        } else {
+            doc = await filesModel.createFile(file, timestamp);
+        }
+        return Promise.resolve(doc.getFileInfo());
+    } catch (err) {
+        return Promise.reject(err);
     }
 }
 
 function referSplitRule(title: string): (text: string) => Array<string> {
-    if (title.includes('HarlemEventText')) {
+    if (/^Harlem[a-zA-Z]?Text/.test(title)) {
         return (text: string): Array<string> => text.split('\r\n\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
     }
-    else if (/p.ev03/.test(title)) {
-        return (text: string): Array<string> => {
+    else if (/^p.ev03/.test(title)) {
+        return (text) => {
             const lines = text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
             const nameIndex = lines.findIndex(t => /^「/.test(t));
             const name = lines[nameIndex - 1];
@@ -95,8 +129,8 @@ function referSplitRule(title: string): (text: string) => Array<string> {
                 .map(talk => /^「/.test(talk) ? name + '\r\n' + talk : talk);
         };
     }
-    else if (/BattleTalkEvent/.test(title)) {
-        return (text: string): Array<string> => {
+    else if (/^BattleTalkEvent/.test(title)) {
+        return (text) => {
             const lines = text.split('\r\n').filter(e => e !== String.fromCharCode(65279)).slice(1);
             const sections = [];
             for (let i = 0; i < lines.length; i += 2) {
@@ -106,41 +140,51 @@ function referSplitRule(title: string): (text: string) => Array<string> {
         };
     }
     else {
-        return (text: string): Array<string> => text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
+        return (text) => text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
     }
 }
 
-function takeText(meta: CreateFileMetaDto, rootDir: string) {
-    const rawTexts: Array<RawTextInfoDto> = [];
-    if (meta.title === 'paev03' || meta.title === 'pcev03' || meta.title === 'prev03') {
-        const fileDir = path.join(rootDir, meta.title);
-        const actDirs = fs.readdirSync(fileDir);
-        actDirs.forEach((dir, index) => {
-            const text = fs.readFileSync(path.join(fileDir, dir, '_evtxt.txt'), 'utf8');
-            rawTexts.push(new RawTextInfoDto(meta.title, dir, text, meta.reincarnation));
-        });
+async function takeText(file: string, rootDir: string): Promise<Array<{ name: string, text: string }>> {
+    const rawTexts: Array<{ name: string, text: string }> = [];
+    const fextname = path.extname(file);
+    const fbasename = path.basename(file, fextname);
+    function checkAndAppend(txtName, txt) {
+        if (txt.trim()) {
+            rawTexts.push({name: path.join(fbasename, txtName), text: txt});
+        }
+    }
+    try {
+        let fileDir = path.join(rootDir, fbasename);
+        if (/^p.ev03/.test(file)) {
+            const actDirs = fs.readdirSync(fileDir);
+            actDirs.forEach(dir => {
+                const text = fs.readFileSync(path.join(fileDir, dir, '_evtxt.txt'), 'utf8');
+                checkAndAppend(dir, text);
+            });
+        }
+        else if (/^BattleTalkEvent[0-9]+/.test(fbasename)) {
+            const text = fs.readFileSync(path.join(fileDir, 'BattleTalkEvent.txt'), 'utf8');
+            checkAndAppend(fbasename, text);
+        }
+        else if (fextname === '.aar') {
+            const files = fs.readdirSync(fileDir);
+            files.forEach(f => {
+                const p = path.join(fileDir, f);
+                if (fs.statSync(p).isFile() && path.extname(f) === '.txt') {
+                    checkAndAppend(path.basename(f, '.txt'), fs.readFileSync(p, 'utf8'));
+                }
+            });
+        }
+        else {
+            fileDir += '.txt';
+            if (fs.statSync(fileDir).isFile()) {
+                checkAndAppend(fbasename, fs.readFileSync(fileDir, 'utf8'));
+            }
+        }
         fs.remove(fileDir);
+    } catch (err) {
+        console.log('Err in taking texts\n', err);
+        return Promise.reject(err);
     }
-    else if (meta.title === 'BattleTalkEvent') {
-        const actDirs = fs.readdirSync(rootDir);
-        actDirs.forEach(dir => {
-            if (dir.includes(meta.title)) {
-                const text = fs.readFileSync(path.join(rootDir, dir, 'BattleTalkEvent.txt'), 'utf8');
-                rawTexts.push(new RawTextInfoDto(meta.title, dir, text, meta.reincarnation));
-                fs.remove(dir);
-            }
-        });
-    }
-    else {
-        const filesExposed = fs.readdirSync(rootDir);
-        filesExposed.forEach(f => {
-            const p = path.join(rootDir, f);
-            if (f.split('.')[0].includes(meta.title) && fs.statSync(p).isFile()) {
-                const text = fs.readFileSync(p, 'utf8');
-                rawTexts.push(new RawTextInfoDto(meta.title, f.split('.')[0], text, meta.reincarnation));
-                fs.remove(p);
-            }
-        });
-    }
-    return rawTexts;
+    return Promise.resolve(rawTexts);
 }

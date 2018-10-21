@@ -8,11 +8,12 @@ export interface UpdateCommand {
 
 export interface FileInfo {
     readonly name: string;
-    readonly published: boolean;
+    readonly sectionsNumber: number;
     readonly translatedNumber: number;
     readonly correctedNumber: number;
-    readonly publishedNumber: number;
-    readonly contractedNumer: number;
+    readonly embellishedNumber: number;
+    readonly contractedNumber: number;
+    readonly published: boolean;
 }
 
 export interface FileRequest {

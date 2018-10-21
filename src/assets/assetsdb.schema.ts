@@ -1,8 +1,7 @@
 
 import * as mongoose from 'mongoose';
-import { CreateSectionDto, CreateFileInfoDto, CreateCommitDto, RawTextInfoDto, CreateFileDto } from './dto/assets.dto';
-import { DBFile, DBSection } from './interface/assets.interface';
-import { Constants } from '../constants';
+import { CreateSectionDto, CreateFileInfoDto, CreateCommitDto, CreateFileDto } from './dto/assets.dto';
+import { DBSection } from './interface/assets.interface';
 
 export const CommitSchema = new mongoose.Schema({
     author: String,
@@ -43,17 +42,11 @@ export const FileSchema = new mongoose.Schema({
 
 FileSchema.index({ meta: 1, published: 1 });
 
-FileSchema.statics.createNewFile = async function(textInfo: RawTextInfoDto, sections: Array<CreateSectionDto>, time?: string) {
-    const file = new this(new CreateFileDto());
-    file.name = textInfo.name;
-    file.meta = textInfo.meta;
-    if (sections[0]) {
-        file.lastUpdated = sections[0].lastUpdated;
-    } else {
-        file.lastUpdated = time || '';
-    }
-    file.addSections(sections);
-    return await file.save();
+FileSchema.statics.createFile = async function(file: CreateFileDto, time?: string) {
+    const doc = new this(file);
+    doc.lastUpdated = time;
+    doc.raw.forEach(s => s.lastUpdated = time);
+    return doc.save();
 };
 
 FileSchema.methods.search = function(section: CreateSectionDto, attr: string) {
@@ -70,7 +63,11 @@ FileSchema.methods.search = function(section: CreateSectionDto, attr: string) {
 };
 
 FileSchema.methods.getSection = function(token: { loc: string, no: number}): DBSection {
-    return this[token.loc][token.no];
+    if (token) {
+        return this[token.loc][token.no];
+    } else {
+        return null;
+    }
 };
 
 FileSchema.methods.getFileInfo = function(): CreateFileInfoDto {
