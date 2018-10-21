@@ -19,6 +19,6 @@ extensions
 /mods
 yarn.lock
 test/
-rawtxt
+raw_repo
 docs
-filesConfig.json
+material

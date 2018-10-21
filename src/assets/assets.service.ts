@@ -2,36 +2,24 @@ import { Injectable, HttpService, Inject } from '@nestjs/common';
 import { Model, model } from 'mongoose';
 import { Constants } from '../constants';
 import { getFileList, fetchFiles, splitToSections } from './operations/update.operation';
-import { UpdateCommandDto, FileInfoDto } from './dto/communication.dto';
-import { CreateFileMetaDto, FileDto  } from './dto/assets.dto';
+import { CmUpdateDto, CmFileInfoDto } from './dto/communication.dto';
+import { CreateFileMetaDto, CreateFileDto } from './dto/assets.dto';
 import { SectionSchema } from './assetsdb.schema';
-import { FileMeta, File, Section } from './interface/assets.interface';
+import { DBFileMeta, DBFile, DBSection } from './interface/assets.interface';
 
 @Injectable()
 export class AssetsService {
     constructor(
         private readonly httpService: HttpService,
-        @Inject(Constants.FileMetaModelToken) private readonly fileMetaModel: Model<FileMeta>,
-        @Inject(Constants.FilesModelToken) private readonly filesModel: Model<File>,
-    ) {}
-    async getFile() {}
-    async submitWork() {}
+        @Inject(Constants.FileMetaModelToken) private readonly fileMetaModel: Model<DBFileMeta>,
+        @Inject(Constants.FilesModelToken) private readonly filesModel: Model<DBFile>,
+    ) { }
+    async getFile() { }
+    async submitWork() { }
     async getFilesInfo() {
-        const metas = this.fileMetaModel.find({ title: { $ne: 'file-list' } }).exec();
-        const filesInfo = {};
-        for(const meta of metas) {
-            filesInfo[meta.title] = {
-                desc: meta.desc,
-                files: [],
-            };
-            const files = await this.filesModel.find({ meta: { $eq: meta.title }}).exec();
-            files.forEach(f => {
-                filesInfo[meta.title].files.push(new FileInfoDto(f));
-            });
-        }
-        return filesInfo;
+        const metas = await this.fileMetaModel.find({ title: { $ne: 'file-list' } }).exec();
     }
-    async updateWeekly(updateCommand: UpdateCommandDto) {
+    async updateWeekly(updateCommand: CmUpdateDto) {
         const fileListMeta = await this.fileMetaModel.findOne({ title: 'file-list' }).exec();
         // here toObject() just to avoid warning from ts that type object has no attribute 'Version'.
         if (fileListMeta.toObject().filePaths.Version === updateCommand.fileListMark) {
@@ -48,13 +36,12 @@ export class AssetsService {
                 const updatingMeta = new CreateFileMetaDto(meta.title, meta.nameRegex, meta.desc, meta.reincarnation);
                 for (const [fileName, filePath] of fileList.entries()) {
                     const reg = new RegExp(meta.nameRegex);
-                    if (reg.test(fileName) && meta.filePaths[fileName] !== filePath) {
+                    if (reg.test(fileName) && meta.fileInfos[fileName] !== filePath) {
                         meta.filePaths[fileName] = filePath;
                         updatingMeta.filePaths[fileName] = filePath;
                     }
                 }
                 const rawTexts = await fetchFiles(updatingMeta, this.httpService);
-                const sectionModel: Model<Section> = model('section', SectionSchema);
                 for (const rawText of rawTexts) {
                     const sections = splitToSections(rawText, updateCommand.remarks);
                     sections.forEach(sec => sec.lastUpdated = timestamp);
@@ -63,46 +50,43 @@ export class AssetsService {
                         file.lastUpdated = timestamp;
                         for (const sec of sections) {
                             sec.lastUpdated = file.lastUpdated;
-                            let contraposition =
-                                rawText.reincarnation ? file.sections.find(cur => cur.hash === sec.hash) : file.sections[sec.inFileId];
-                            if (contraposition && contraposition.hash === sec.hash) {
+                            const sechome = rawText.reincarnation ? file.search(sec, 'hash') : file.search(sec, 'inFileId');
+                            const contraposition = file.getSection(sechome);
+                            if (contraposition && contraposition.hash === sec.hash && contraposition.inFileId === sec.inFileId) {
+                                contraposition.lastUpdated = sec.lastUpdated;
                                 continue;
                             }
                             else if (!contraposition) {
-                                file.sections.push(new sectionModel(sec));
+                                file.addSections([sec]);
                             }
-                            else if (contraposition.hash === sec.hash && rawText.reincarnation) {
+                            else if (contraposition.hash === sec.hash && rawText.reincarnation && contraposition.inFileId !== sec.inFileId) {
                                 contraposition.inFileId = sec.inFileId;
                                 contraposition.lastUpdated = sec.lastUpdated;
                             }
                             else if (contraposition.hash !== sec.hash && contraposition.inFileId === sec.inFileId) {
-                                contraposition = new sectionModel(sec);
+                                file.resetSection(sechome, sec);
                             }
-                            else {
-                                contraposition.lastUpdated = sec.lastUpdated;
-                            }
+                            file.published = false;
                         }
                         file.save();
                     } else {
-                        const newFile = new FileDto(rawText);
-                        newFile.lastUpdated = timestamp;
-                        newFile.sections = sections;
-                        const newModel = new this.filesModel(newFile);
-                        newModel.save();
+                        await this.filesModel.createFile(rawText, sections);
                     }
+                    meta.updateInfo(file.getFileInfo());
                 }
                 meta.markModified('filePaths');
                 meta.save();
             } catch (err) {
                 console.log('Failed in update meta: ', err);
             }
-            // update file list version only if all files updated
-            fileListMeta.set({
-                filePaths: {
-                    Version: updateCommand.fileListMark,
-                },
-            });
         }
+        // update file list version only if all files updated
+        fileListMeta.set({
+            filePaths: {
+                Version: updateCommand.fileListMark,
+            },
+        });
+        fileListMeta.save();
         return Promise.resolve('Ok');
     }
 

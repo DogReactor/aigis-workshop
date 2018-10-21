@@ -1,29 +1,26 @@
-import { File } from '../interface/assets.interface';
+import { WorkModel } from '../../constants';
+import { UpdateCommand, FileInfo, FileRequest } from '../interface/service.interface';
+import { UserAuthorities } from '../../users/users.model';
 
-export class UpdateCommandDto {
+export class CmUpdateDto implements UpdateCommand{
     readonly fileListMark: string;
     readonly remarks: object;
 }
 
-export class FileInfoDto {
+export class CmFileInfoDto implements FileInfo {
     name: string;
-    lastPublished: string;
+    published: boolean;
     translatedNumber: number;
     correctedNumber: number;
     publishedNumber: number;
     orderedNumber: number;
-    constructor(fileRef: File) {
-        this.name = fileRef.name;
-        this.lastPublished = fileRef.lastPublished;
-        this.translatedNumber = fileRef.translatedNumber;
-        this.correctedNumber = fileRef.correctedNumber;
-        this.publishedNumber = fileRef.publishedNumber;
-        this.orderedNumber = fileRef.orderedNumber;
-    }
+    contractedNumer: number;
+    contractor: string;
 }
 
-export class FileRequestCommandDtoCommandDto {
+export class CmFileRequestDto implements FileRequest{
     file: string;
     meta: string;
-    user: string;
+    user: UserAuthorities;
+    model: WorkModel = WorkModel.Reading;
 }

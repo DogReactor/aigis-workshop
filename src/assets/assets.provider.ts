@@ -5,12 +5,12 @@ import { Constants } from '../constants';
 export const AssetsProviders = [
     {
         provide: Constants.FileMetaModelToken,
-        useFactory: (connection: Connection) => connection.model('files_meta', FileMetaSchema, 'files_meta'),
+        useFactory: (connection: Connection) => connection.model('filemeta', FileMetaSchema, ),
         inject: [Constants.DbConnectionToken],
     },
     {
         provide: Constants.FilesModelToken,
-        useFactory: (connection: Connection) => connection.model('text_repository', FileSchema, 'text_repository'),
+        useFactory: (connection: Connection) => connection.model('text', FileSchema),
         inject: [Constants.DbConnectionToken],
     },
 ];

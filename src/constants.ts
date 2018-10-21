@@ -29,5 +29,10 @@ export class Constants {
 
     public static get NO_TOKEN() { return '没有Token'; }
     public static get TOKEN_ERROR() { return 'Token错误'; }
-
 }
+
+export enum WorkModel { Reading, Translating, Correcting, Embellishing }
+
+export enum UserAuthority { Translator, Corrector, Embellisher, Administor }
+
+export enum SectionStatus { Raw, Translated, Corrected, Polished, Published }

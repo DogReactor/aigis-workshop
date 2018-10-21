@@ -1,51 +1,52 @@
+import * as mongoose from 'mongoose';
+import { SectionStatus } from '../../constants';
 
-export class CreateFileMetaDto{
-    title: string;
-    nameRegex: string;
-    desc: string = '';
-    filePaths: object = {};
-    reincarnation: boolean = false;
-    constructor(title: string, nameRegex: string, desc?: string, reincarnation?: boolean) {
-        this.title = title;
-        this.nameRegex = nameRegex;
-        this.desc = desc;
-        this.reincarnation = reincarnation;
-        this.filePaths = {};
-    }
+export class CreateFileInfoDto {
+    sectionsNumber: number;
+    translatedNumber: number;
+    correctedNumber: number;
+    embellishedNumber: number;
+    contractedNumber: number;
+    published: boolean;
+    constructor(
+        public name: string,
+    ) { }
 }
 
-export class RawTextInfoDto{
-    meta: string;
-    name: string;
-    text: string;
-    reincarnation: boolean;
-    constructor(meta: string, name: string, text: string, reincarnation: boolean) {
-        this.meta = meta;
-        this.name = name;
-        this.text = text;
-        this.reincarnation = reincarnation;
-    }
+export class CreateFileMetaDto {
+    filesInfo: Array<CreateFileInfoDto> = [];
+    filePaths = {};
+    constructor(
+        public title: string,
+        public nameRegex: string,
+        public desc: string,
+        public reincarnation: boolean,
+    ) { }
 }
 
-export class FileDto{
+export class RawTextInfoDto {
+    constructor(
+        public meta: string,
+        public name: string,
+        public text: string,
+        public reincarnation: boolean,
+    ) { }
+}
+
+export class CreateFileDto {
     name: string;
     meta: string;
     lastUpdated: string = '';
     lastPublished: string = '';
-    translatedNumber: number = 0;
-    correctedNumber: number = 0;
-    publishedNumber: number = 0;
-    orderedNumber: number = 0;
-    sections: Array<TextSectionDto> = [];
-    constructor(rawTextInfo: RawTextInfoDto) {
-        this.name = rawTextInfo.name;
-        this.meta = rawTextInfo.meta;
-    }
+    contractedNumber: number = 0;
+    raw: Array<CreateSectionDto> = [];
+    translated: Array<CreateSectionDto> = [];
+    corrected: Array<CreateSectionDto> = [];
+    embellished: Array<CreateSectionDto> = [];
+    published: boolean = false;
 }
 
-export enum SectionStatus { Raw, Translated, Corrected, Polished, Published }
-
-export class CommitDto{
+export class CreateCommitDto {
     author: string;
     id: string;
     time: string;
@@ -53,15 +54,14 @@ export class CommitDto{
     kind: SectionStatus = SectionStatus.Raw;
 }
 
-export class TextSectionDto{
+export class CreateSectionDto{
     inFileId: number;
     hash: string;
     superFile: string;
-    status: SectionStatus = SectionStatus.Raw;
     origin: string;
-    translation: string = '';
-    commits: Array<CommitDto> = [];
+    text: string = '';
+    commits: Array<CreateCommitDto> = [];
     lastUpdated: string;
     desc: string = '';
-    ordered: string = '';
+    contractor: string;
 }

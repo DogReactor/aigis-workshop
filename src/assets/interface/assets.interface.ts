@@ -1,43 +1,43 @@
-import { Document } from 'mongoose';
-import { SectionStatus } from '../dto/assets.dto';
+import { Document, Model } from 'mongoose';
+import { SectionStatus } from '../../constants';
+import { FileInfo, Commit, Section } from './service.interface';
+import { CreateSectionDto, CreateFileInfoDto, CreateCommitDto } from '../dto/assets.dto';
 
-export interface FileMeta extends Document {
+export interface DBFileInfo extends FileInfo{
+  filePath: string;
+}
+
+export interface DBFileMeta extends Document {
   readonly title: string;
   readonly nameRegex: string;
   readonly desc: string;
-  readonly filePaths: object;
   readonly reincarnation: boolean;
+  filePaths: object;
+  fileInfos: Array<DBFileInfo>;
+  updateInfo(newInfo: DBFileInfo);
 }
 
-export interface Commit extends Document {
-  readonly author: string;
-  readonly id: string;
-  readonly time: string;
-  readonly text: string;
-  readonly kind: SectionStatus;
+export interface DBCommit extends Document, Commit { }
+
+export interface DBSection extends Document, Section {
+  commits: Array<DBCommit>;
+  commit(work: CreateCommitDto);
 }
 
-export interface Section extends Document{
-  inFileId: number;
-  hash: string;
-  superFile: string;
-  status: SectionStatus;
-  origin: string;
-  translation: string;
-  commits: Array<Commit>;
-  lastUpdated: string;
-  desc: string;
-  ordered: string;
-}
-
-export interface File extends Document {
+export interface DBFile extends Document {
   name: string;
   meta: string;
   lastUpdated: string;
   lastPublished: string;
-  translatedNumber: number;
-  correctedNumber: number;
-  publishedNumber: number;
-  orderedNumber: number;
-  sections: Array<Section>;
+  contractedNumber: number;
+  raw: Array<DBSection>;
+  translated: Array<DBSection>;
+  corrected: Array<DBSection>;
+  embellished: Array<DBSection>;
+  published: boolean;
+  search(section: CreateSectionDto, attr: string);
+  getSection(token: object): DBSection;
+  getFileInfo();
+  addSections(section: Array<CreateSectionDto>);
+  resetSection(token: object, section: CreateSectionDto);
 }
