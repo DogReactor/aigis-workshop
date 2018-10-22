@@ -181,7 +181,7 @@ async function takeText(file: string, rootDir: string): Promise<Array<{ name: st
                 checkAndAppend(fbasename, fs.readFileSync(fileDir, 'utf8'));
             }
         }
-        // fs.remove(fileDir);
+        fs.remove(fileDir);
     } catch (err) {
         console.log('Err in taking texts\n', err);
         return Promise.reject(err);

@@ -7,6 +7,8 @@ import { getFileList, fetchFile, splitToSections, attachRemarks, updateDoc } fro
 import { CmUpdateDto } from './dto/communication.dto';
 import { CreateFileMetaDto, CreateFileDto, StoreKeys, CreateCommitDto } from './dto/assets.dto';
 import { DBFileMeta, DBFileModel, DBSection } from './interface/assets.interface';
+import { resolve } from 'dns';
+import { readFile } from 'fs';
 
 @Injectable()
 export class AssetsService {
@@ -30,7 +32,7 @@ export class AssetsService {
         const file = await this.filesModel.findOne({ meta: proposal.meta, name: proposal.name }).exec();
         // To Do 鉴权
         const store = file[StoreKeys[proposal.model - 1]];
-        switch(proposal.method) {
+        switch (proposal.method) {
             case ContractedMethods.all:
                 store.forEach(s => s.contract(proposal));
                 break;
@@ -46,16 +48,16 @@ export class AssetsService {
                 }
                 break;
             case ContractedMethods.select:
-                if(proposal.hashes) {
-                    for(const hash of proposal.hashes) {
-                        store.find(s=>s.hash === hash).contract(proposal);
+                if (proposal.hashes) {
+                    for (const hash of proposal.hashes) {
+                        store.find(s => s.hash === hash).contract(proposal);
                     }
                 }
                 break;
         }
         file.save();
         return Promise.resolve('ok');
-     }
+    }
     async submitWork(submitedWork: SubmitWork) {
         const file = await this.filesModel.findOne({ meta: submitedWork.meta, name: submitedWork.name }).exec();
         // To Do 鉴权
@@ -68,7 +70,7 @@ export class AssetsService {
         }
         file.save();
         return Promise.resolve('ok');
-     }
+    }
     async getFilesInfo() {
         const metas = await this.fileMetaModel.find({ title: { $ne: 'file-list' } }).exec();
         return metas.map(meta => {
@@ -89,9 +91,7 @@ export class AssetsService {
 
         const fileList: Map<string, string> = await getFileList(updateCommand.fileListMark, this.httpService);
         const filesMeta = await this.fileMetaModel.find({ title: { $ne: 'file-list' } }).exec();
-        let completed = true;
-
-        for (const meta of filesMeta) {
+        const metaPromises = filesMeta.map(meta => new Promise(async (resolveMeta, rejectMeta) => {
             const updatingMeta = new CreateFileMetaDto(meta.title, meta.nameRegex, meta.desc, meta.reincarnation);
             for (const [fileName, filePath] of fileList.entries()) {
                 const reg = new RegExp(meta.nameRegex);
@@ -99,47 +99,44 @@ export class AssetsService {
                     updatingMeta.filePaths[fileName] = filePath;
                 }
             }
-            for (const file of Object.keys(updatingMeta.filePaths)) {
-                try {
-                    await fetchFile(file, updatingMeta.filePaths[file], this.httpService)
-                        .then(rawTexts => rawTexts.map(t => splitToSections(t)), err => { throw err; })
-                        .then(rawSections => rawSections.map(t => attachRemarks(meta.title, t, updateCommand.remarks)))
-                        .then(rawSections => rawSections.map(t => new CreateFileDto(t, meta)))
-                        .then(async files => {
-                            try {
-                                for (const f of files) {
-                                    const docInfo = await updateDoc(f, meta, this.filesModel, timestamp);
-                                    meta.updateInfo(docInfo);
-                                }
+            const getFilePromises = Object.keys(updatingMeta.filePaths).map(async file =>
+                fetchFile(file, updatingMeta.filePaths[file], this.httpService)
+                    .then(rawTexts => rawTexts.map(t => splitToSections(t)), err => Promise.reject(err))
+                    .then(rawSections => rawSections.map(t => attachRemarks(meta.title, t, updateCommand.remarks)))
+                    .then(rawSections => rawSections.map(t => new CreateFileDto(t, meta)))
+                    .then(files => Promise.all(files.map(f =>
+                        updateDoc(f, meta, this.filesModel, timestamp)
+                            .then(docInfo => {
+                                meta.updateInfo(docInfo);
                                 meta.filePaths[file] = updatingMeta.filePaths[file];
-                                return Promise.resolve('Ok');
-                            } catch (err) {
-                                return Promise.reject(err);
-                            }
-                        })
-                        .catch(err => {
-                            fs.appendFile('update.err',
-                                `Failed in updating doc from ${file}, path ${updatingMeta.filePaths[file]}, [${timestamp}]\r\n`,
-                                { flag: 'a+' });
-                            return Promise.reject(err);
-                        });
-                } catch (err) {
-                    completed = false;
-                    console.log('Failed in update meta:\n', err);
-                }
+                                console.log('updated!')
+                            }, err => Promise.reject(err)))))
+                    .then(s => file, err => {
+                        fs.appendFile('update.err',
+                            `Failed in updating doc from ${file}, path ${updatingMeta.filePaths[file]}, [${timestamp}]\r\n`,
+                            { flag: 'a+' });
+                        return Promise.reject(err);
+                    }));
+            try {
+                await Promise.all(getFilePromises);
+                console.log(`meta ${meta} done`, getFilePromises.length);
+                resolveMeta(meta.title);
+            } catch (err) {
+                rejectMeta(err);
             }
             meta.markModified('filePaths');
             meta.save();
-        }
+
+        }));
         // update file list version only if all files updated
-        if (completed) {
+        Promise.all(metaPromises).then(s => {
             fileListMeta.set({
                 filePaths: {
                     Version: updateCommand.fileListMark,
                 },
             });
             fileListMeta.save();
-        }
+        }).catch(e => { });
 
         return Promise.resolve('Ok');
     }

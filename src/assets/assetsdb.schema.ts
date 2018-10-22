@@ -137,4 +137,5 @@ FileMetaSchema.methods.updateInfo = function(newInfo: CreateFileInfoDto) {
     } else {
         this.filesInfo.push(newInfo);
     }
+    return this.filesInfo[this.filesInfo.length - 1];
 };
