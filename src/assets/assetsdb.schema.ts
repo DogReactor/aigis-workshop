@@ -1,15 +1,15 @@
 
 import * as mongoose from 'mongoose';
-import { CreateSectionDto, CreateFileInfoDto, CreateCommitDto, RawTextInfoDto, CreateFileDto } from './dto/assets.dto';
-import { DBFile, DBSection } from './interface/assets.interface';
-import { Constants } from '../constants';
+import { CreateSectionDto, CreateFileInfoDto, CreateCommitDto, CreateFileDto, StoreKeys } from './dto/assets.dto';
+import { DBSection } from './interface/assets.interface';
+import { ContractProposal } from './interface/service.interface';
 
 export const CommitSchema = new mongoose.Schema({
     author: String,
     id: String,
     time: String,
     text: String,
-    kind: Number,
+    type: Number,
 });
 export const SectionSchema = new mongoose.Schema({
     inFileId: Number,
@@ -20,13 +20,20 @@ export const SectionSchema = new mongoose.Schema({
     commits: [CommitSchema],
     lastUpdated: String,
     desc: String,
-    contractor: String,
-
+    contractInfo: {
+        contractor: String,
+        time: String,
+    },
 });
 
-SectionSchema.methods.commit = function(work: CreateCommitDto) {
-    this.commits.push(work);
-};
+SectionSchema.methods.contract = function(proposal: ContractProposal): boolean {
+    if (!this.contractInfo.contractor) {
+        this.set('contractInfo.contractor', proposal.author.username);
+        this.set('contractInfo.time', proposal.time);
+        return true;
+    }
+    return false;
+}
 
 export const FileSchema = new mongoose.Schema({
     name: String,
@@ -43,23 +50,16 @@ export const FileSchema = new mongoose.Schema({
 
 FileSchema.index({ meta: 1, published: 1 });
 
-FileSchema.statics.createNewFile = async function(textInfo: RawTextInfoDto, sections: Array<CreateSectionDto>, time?: string) {
-    const file = new this(new CreateFileDto());
-    file.name = textInfo.name;
-    file.meta = textInfo.meta;
-    if (sections[0]) {
-        file.lastUpdated = sections[0].lastUpdated;
-    } else {
-        file.lastUpdated = time || '';
-    }
-    file.addSections(sections);
-    return await file.save();
+FileSchema.statics.createFile = async function(file: CreateFileDto, time?: string) {
+    const doc = new this(file);
+    doc.lastUpdated = time;
+    doc.raw.forEach(s => s.lastUpdated = time);
+    return doc.save();
 };
 
 FileSchema.methods.search = function(section: CreateSectionDto, attr: string) {
     if (this.hasOwnProperty(attr) && section.hasOwnProperty(attr)) {
-        const stores = ['raw', 'translated', 'corrected', 'embellished'];
-        for (const store of stores) {
+        for (const store of StoreKeys) {
             const i = this[store].findIndex(s => s[attr] === section[attr]);
             if (i !== -1) {
                 return { loc: store, no: i };
@@ -70,7 +70,11 @@ FileSchema.methods.search = function(section: CreateSectionDto, attr: string) {
 };
 
 FileSchema.methods.getSection = function(token: { loc: string, no: number}): DBSection {
-    return this[token.loc][token.no];
+    if (token) {
+        return this[token.loc][token.no];
+    } else {
+        return null;
+    }
 };
 
 FileSchema.methods.getFileInfo = function(): CreateFileInfoDto {
@@ -133,4 +137,5 @@ FileMetaSchema.methods.updateInfo = function(newInfo: CreateFileInfoDto) {
     } else {
         this.filesInfo.push(newInfo);
     }
+    return this.filesInfo[this.filesInfo.length - 1];
 };

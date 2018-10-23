@@ -1,5 +1,7 @@
-import * as mongoose from 'mongoose';
+import * as crypto from 'crypto';
+import * as path from 'path';
 import { SectionStatus } from '../../constants';
+import { SubmitWork } from '../interface/service.interface';
 
 export class CreateFileInfoDto {
     sectionsNumber: number;
@@ -15,7 +17,7 @@ export class CreateFileInfoDto {
 
 export class CreateFileMetaDto {
     filesInfo: Array<CreateFileInfoDto> = [];
-    filePaths = {};
+    filePaths: object = {};
     constructor(
         public title: string,
         public nameRegex: string,
@@ -24,44 +26,59 @@ export class CreateFileMetaDto {
     ) { }
 }
 
-export class RawTextInfoDto {
-    constructor(
-        public meta: string,
-        public name: string,
-        public text: string,
-        public reincarnation: boolean,
-    ) { }
-}
-
+export const StoreKeys = ['raw', 'translated', 'corrected', 'embellished'];
 export class CreateFileDto {
     name: string;
     meta: string;
     lastUpdated: string = '';
     lastPublished: string = '';
     contractedNumber: number = 0;
-    raw: Array<CreateSectionDto> = [];
     translated: Array<CreateSectionDto> = [];
     corrected: Array<CreateSectionDto> = [];
     embellished: Array<CreateSectionDto> = [];
     published: boolean = false;
+    constructor(public raw: Array<CreateSectionDto>, meta: CreateFileMetaDto) {
+        this.name = path.basename(this.raw[0].superFile);
+        this.meta = meta.title;
+    }
 }
 
 export class CreateCommitDto {
     author: string;
     id: string;
     time: string;
-    text: string;
-    kind: SectionStatus = SectionStatus.Raw;
+    type: SectionStatus = SectionStatus.Raw;
+    constructor(work: SubmitWork, public text: string) {
+        this.author = work.author.username;
+        this.time = work.time;
+        this.type = work.type;
+        const md5 = crypto.createHash('md5');
+        md5.update(this.author);
+        md5.update(text);
+        md5.update(this.time);
+        this.id = md5.digest('hex');
+    }
 }
 
 export class CreateSectionDto{
-    inFileId: number;
     hash: string;
-    superFile: string;
-    origin: string;
     text: string = '';
     commits: Array<CreateCommitDto> = [];
     lastUpdated: string;
     desc: string = '';
-    contractor: string;
+    contractInfo: {
+        contractor: string;
+        time: string;
+    } = {
+        contractor: '',
+        time: '',
+    };
+    constructor(public inFileId: number,
+                public origin: string,
+                public superFile: string) {
+        const md5 = crypto.createHash('md5');
+        md5.update(this.origin);
+        md5.update(this.inFileId.toString());
+        this.hash = md5.digest('hex');
+    }
 }

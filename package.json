@@ -16,7 +16,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:e2e": "jest --config ./test/jest-e2e.json",
+    "test:e2e": "jest --config ./test/jest-e2e.json --detectOpenHandles",
     "webpack": "webpack --config webpack.config.js"
   },
   "dependencies": {
@@ -24,10 +24,12 @@
     "@nestjs/core": "^5.1.0",
     "@nestjs/mongoose": "^5.2.2",
     "@nestjs/testing": "^5.3.11",
+    "@types/fs-extra": "^5.0.4",
     "aigis-fuel": "^0.2.4",
     "class-transformer": "^0.1.10",
     "class-validator": "^0.9.1",
     "compression": "^1.7.3",
+    "fs-extra": "^7.0.0",
     "jsonwebtoken": "^8.3.0",
     "mongoose": "^5.3.4",
     "reflect-metadata": "^0.1.12",

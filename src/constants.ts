@@ -31,8 +31,10 @@ export class Constants {
     public static get TOKEN_ERROR() { return 'Token错误'; }
 }
 
-export enum WorkModel { Reading, Translating, Correcting, Embellishing }
+export enum WorkModel { Reading, Translating, Correcting, Embellishing, Publishing }
 
 export enum UserAuthority { Translator, Corrector, Embellisher, Administor }
 
 export enum SectionStatus { Raw, Translated, Corrected, Polished, Published }
+
+export enum ContractedMethods { random, all, select }
