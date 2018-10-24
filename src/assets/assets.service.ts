@@ -84,61 +84,68 @@ export class AssetsService {
         const fileListMeta = await this.fileMetaModel.findOne({ title: 'file-list' }).exec();
         // here toObject() just to avoid warning from ts that type object has no attribute 'Version'.
         if (fileListMeta.toObject().filePaths.Version === updateCommand.fileListMark) {
-            return Promise.resolve('No need to update');
+            return 'need not update';
         }
         const date = new Date();
         const timestamp = date.toLocaleString();
 
         const fileList: Map<string, string> = await getFileList(updateCommand.fileListMark, this.httpService);
         const filesMeta = await this.fileMetaModel.find({ title: { $ne: 'file-list' } }).exec();
-        const metaPromises = filesMeta.map(meta => new Promise(async (resolveMeta, rejectMeta) => {
-            const updatingMeta = new CreateFileMetaDto(meta.title, meta.nameRegex, meta.desc, meta.reincarnation);
-            for (const [fileName, filePath] of fileList.entries()) {
-                const reg = new RegExp(meta.nameRegex);
-                if (reg.test(fileName) && meta.filePaths[fileName] !== filePath) {
-                    updatingMeta.filePaths[fileName] = filePath;
+        for (const meta of filesMeta) {
+            // 删除这个await可以让所有meta并行处理
+            await (async () => {
+                const updatingMeta = new CreateFileMetaDto(meta.title, meta.nameRegex, meta.desc, meta.reincarnation);
+                for (const [fileName, filePath] of fileList.entries()) {
+                    const reg = new RegExp(meta.nameRegex);
+                    if (reg.test(fileName) && meta.filePaths[fileName] !== filePath) {
+                        updatingMeta.filePaths[fileName] = filePath;
+                    }
                 }
-            }
-            const getFilePromises = Object.keys(updatingMeta.filePaths).map(async file =>
-                fetchFile(file, updatingMeta.filePaths[file], this.httpService)
-                    .then(rawTexts => rawTexts.map(t => splitToSections(t)), err => Promise.reject(err))
-                    .then(rawSections => rawSections.map(t => attachRemarks(meta.title, t, updateCommand.remarks)))
-                    .then(rawSections => rawSections.map(t => new CreateFileDto(t, meta)))
-                    .then(files => Promise.all(files.map(f =>
-                        updateDoc(f, meta, this.filesModel, timestamp)
-                            .then(docInfo => {
-                                meta.updateInfo(docInfo);
-                                meta.filePaths[file] = updatingMeta.filePaths[file];
-                                console.log('updated!')
-                            }, err => Promise.reject(err)))))
-                    .then(s => file, err => {
-                        fs.appendFile('update.err',
-                            `Failed in updating doc from ${file}, path ${updatingMeta.filePaths[file]}, [${timestamp}]\r\n`,
-                            { flag: 'a+' });
-                        return Promise.reject(err);
-                    }));
-            try {
-                await Promise.all(getFilePromises);
-                console.log(`meta ${meta} done`, getFilePromises.length);
-                resolveMeta(meta.title);
-            } catch (err) {
-                rejectMeta(err);
-            }
-            meta.markModified('filePaths');
-            meta.save();
+                for (const file of Object.keys(updatingMeta.filePaths)) {
+                    // 删除这个await可以让这个meta需要update的数个文件并行请求
+                    await (async () => {
+                        try {
+                            let rawSections = (await fetchFile(file, updatingMeta.filePaths[file], this.httpService)).map(t => splitToSections(t));
+                            rawSections = rawSections.map(t => attachRemarks(meta.title, t, updateCommand.remarks));
+                            const files = rawSections.map(t => new CreateFileDto(t, meta));
 
-        }));
+                            for (const f of files) {
+                                // 删除这个await可以让所有条目一起入库
+                                // 但建议一条一条来，不然我那个破服务器怕是会炸。多的文本几千条，同时入库我怕撑不住
+                                await (async () => {
+                                    let docInfo;
+                                    try {
+                                        docInfo = await updateDoc(f, meta, this.filesModel, timestamp);
+                                    } catch (err) {
+                                        fs.appendFile('update.err',
+                                            `Failed in updating oc from ${file}, path ${updatingMeta.filePaths[file]}, [${timestamp}]\r\n`,
+                                            { flag: 'a+' });
+                                    }
+                                    meta.updateInfo(docInfo);
+                                    meta.filePaths[file] = updatingMeta.filePaths[file];
+                                })();
+                            }
+                            console.log(`${file} updated!`);
+                        } catch (err) {
+                            console.log(err);
+                        }
+                    })();
+                }
+                console.log(`meta ${meta} done`);
+                meta.markModified('filePaths');
+                meta.save();
+            })();
+        }
+
         // update file list version only if all files updated
-        Promise.all(metaPromises).then(s => {
-            fileListMeta.set({
-                filePaths: {
-                    Version: updateCommand.fileListMark,
-                },
-            });
-            fileListMeta.save();
-        }).catch(e => { });
+        fileListMeta.set({
+            filePaths: {
+                Version: updateCommand.fileListMark,
+            },
+        });
+        fileListMeta.save();
 
-        return Promise.resolve('Ok');
+        return 'OK';
     }
 
     async PackTranslations() { }
