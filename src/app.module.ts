@@ -16,15 +16,6 @@ export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer): void {
     consumer
       .apply(TokenVerifyMiddleware)
-      .forRoutes('/user');
-    consumer
-      .apply(TokenVerifyMiddleware)
-      .forRoutes('/assets/request_files_info');
-    consumer
-      .apply(TokenVerifyMiddleware)
-      .forRoutes('/assets/get_file');
-    consumer
-      .apply(TokenVerifyMiddleware)
-      .forRoutes('/assets/submit_work');
+      .forRoutes('/user', '/assets');
   }
 }
