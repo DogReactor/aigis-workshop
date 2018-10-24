@@ -7,4 +7,3 @@ export class CmUpdateDto implements UpdateCommand{
     readonly fileListMark: string;
     readonly remarks: object;
 }
-
