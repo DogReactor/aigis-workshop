@@ -1,9 +1,11 @@
 import { Injectable } from '@nestjs/common';
+import { UserAuthority } from '../constants';
 import * as jwt from 'jsonwebtoken';
 
 export interface JsonWebToken {
     _id: string;
     password: string;
+    authorities: [UserAuthority];
 }
 
 @Injectable()

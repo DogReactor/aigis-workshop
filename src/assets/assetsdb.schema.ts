@@ -28,12 +28,12 @@ export const SectionSchema = new mongoose.Schema({
 
 SectionSchema.methods.contract = function(proposal: ContractProposal): boolean {
     if (!this.contractInfo.contractor) {
-        this.set('contractInfo.contractor', proposal.author.username);
+        this.set('contractInfo.contractor', proposal.user.username);
         this.set('contractInfo.time', proposal.time);
         return true;
     }
     return false;
-}
+};
 
 export const FileSchema = new mongoose.Schema({
     name: String,

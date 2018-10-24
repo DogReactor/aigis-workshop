@@ -7,8 +7,6 @@ import { getFileList, fetchFile, splitToSections, attachRemarks, updateDoc } fro
 import { CmUpdateDto } from './dto/communication.dto';
 import { CreateFileMetaDto, CreateFileDto, StoreKeys, CreateCommitDto } from './dto/assets.dto';
 import { DBFileMeta, DBFileModel, DBSection } from './interface/assets.interface';
-import { resolve } from 'dns';
-import { readFile } from 'fs';
 
 @Injectable()
 export class AssetsService {
@@ -20,7 +18,6 @@ export class AssetsService {
     async getFile(fileRequest: FileRequest): Promise<Array<Section>> {
         const file = await this.filesModel.findOne({ meta: fileRequest.meta, name: fileRequest.name }).exec();
         let sections: Array<DBSection> = [];
-        // To Do 鉴权
         if (fileRequest.model === WorkModel.Reading) {
             sections = file.raw.concat(file.translated, file.corrected, file.embellished);
         } else {
@@ -30,8 +27,10 @@ export class AssetsService {
     }
     async contract(proposal: ContractProposal) {
         const file = await this.filesModel.findOne({ meta: proposal.meta, name: proposal.name }).exec();
-        // To Do 鉴权
-        const store = file[StoreKeys[proposal.model - 1]];
+        if (!proposal.user.authorities.includes(proposal.permission)) {
+            return Promise.reject('Permission denied');
+        }
+        const store = file[StoreKeys[proposal.permission]];
         switch (proposal.method) {
             case ContractedMethods.all:
                 store.forEach(s => s.contract(proposal));
@@ -60,13 +59,19 @@ export class AssetsService {
     }
     async submitWork(submitedWork: SubmitWork) {
         const file = await this.filesModel.findOne({ meta: submitedWork.meta, name: submitedWork.name }).exec();
-        // To Do 鉴权
-        const store = file[StoreKeys[submitedWork.type - 1]];
+        if (!submitedWork.user.authorities.includes(submitedWork.permission)) {
+            return Promise.reject('Permission denied');
+        }
+        const store = file[StoreKeys[submitedWork.permission]];
+        const nextStore = file[StoreKeys[submitedWork.permission + 1]];
         for (const work of submitedWork.works) {
-            const section = store.find(s => s.hash === work.hash);
+            const sectionId = store.findIndex(s => s.hash === work.hash);
+            const section = store[sectionId];
             section.text = work.text;
             section.contractor = '';
             section.commits.push(new CreateCommitDto(submitedWork, work.text));
+            nextStore.push(section);
+            section.splice(sectionId, 1);
         }
         file.save();
         return Promise.resolve('ok');
@@ -101,11 +106,12 @@ export class AssetsService {
                         updatingMeta.filePaths[fileName] = filePath;
                     }
                 }
-                for (const file of Object.keys(updatingMeta.filePaths)) {
+                for (const dlFile of Object.keys(updatingMeta.filePaths)) {
                     // 删除这个await可以让这个meta需要update的数个文件并行请求
                     await (async () => {
                         try {
-                            let rawSections = (await fetchFile(file, updatingMeta.filePaths[file], this.httpService)).map(t => splitToSections(t));
+                            let rawSections = (await fetchFile(dlFile, updatingMeta.filePaths[dlFile], this.httpService))
+                                                .map(t => splitToSections(t));
                             rawSections = rawSections.map(t => attachRemarks(meta.title, t, updateCommand.remarks));
                             const files = rawSections.map(t => new CreateFileDto(t, meta));
 
@@ -118,14 +124,14 @@ export class AssetsService {
                                         docInfo = await updateDoc(f, meta, this.filesModel, timestamp);
                                     } catch (err) {
                                         fs.appendFile('update.err',
-                                            `Failed in updating oc from ${file}, path ${updatingMeta.filePaths[file]}, [${timestamp}]\r\n`,
+                                            `Failed in updating oc from ${dlFile}, path ${updatingMeta.filePaths[dlFile]}, [${timestamp}]\r\n`,
                                             { flag: 'a+' });
                                     }
                                     meta.updateInfo(docInfo);
-                                    meta.filePaths[file] = updatingMeta.filePaths[file];
+                                    meta.filePaths[dlFile] = updatingMeta.filePaths[dlFile];
                                 })();
                             }
-                            console.log(`${file} updated!`);
+                            console.log(`${dlFile} updated!`);
                         } catch (err) {
                             console.log(err);
                         }
