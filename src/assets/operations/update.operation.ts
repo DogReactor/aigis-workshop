@@ -1,11 +1,12 @@
 import * as fs from 'fs-extra';
 import * as path from 'path';
-
+import * as crypto from 'crypto';
 import { HttpService } from '@nestjs/common';
 import { map } from 'rxjs/operators';
-import { parseAL } from 'aigis-fuel';
+import { parseAL, AL } from 'aigis-fuel';
 import { CreateSectionDto, CreateFileDto, CreateFileInfoDto } from '../dto/assets.dto';
-import { DBFileMeta, DBFileModel } from 'assets/interface/assets.interface';
+import { FileModel } from 'assets/interface/assets.interface';
+import { Model } from 'mongoose';
 
 export async function getFileList(fileListMark, httpService: HttpService): Promise<Map<string, string>> {
     const fileListPostfix = {
@@ -32,15 +33,12 @@ export async function getFileList(fileListMark, httpService: HttpService): Promi
     return Promise.resolve(fileList);
 }
 
-export async function fetchFile(file: string, refPath: string, httpService: HttpService): Promise<Array<{ name: string, text: string }>> {
-    const rootDir = './raw_repo';
-    fs.ensureDirSync(rootDir);
+export async function fetchFile(fileName: string, refPath: string, httpService: HttpService): Promise<Array<{ name: string, text: string }>> {
     try {
-        const locatedDir = path.join(rootDir, file);
         const fileBuffer = await downloadAsset(refPath, httpService);
-        parseAL(fileBuffer).Save(locatedDir);
-        const texts = await takeText(file, rootDir);
-        return Promise.resolve(texts);
+        const al = parseAL(fileBuffer)
+        const texts = await takeText(fileName, al);
+        return texts;
     } catch (err) {
         console.log('Failed in fetching: ', err);
         return Promise.reject(err);
@@ -57,11 +55,38 @@ async function downloadAsset(filePath, httpService: HttpService): Promise<Buffer
     return httpService.request(reqOption).pipe(map(r => r.data)).toPromise();
 }
 
-export function splitToSections(textInfo: { name: string, text: string }): Array<CreateSectionDto> {
-    const meta = path.dirname(textInfo.name);
-    const sectionsText = referSplitRule(meta)(textInfo.text);
-    const sections: Array<CreateSectionDto>
-        = sectionsText.map((originText, index) => new CreateSectionDto(index + 1, originText, textInfo.name));
+export function splitToSections(doc: { name: string, text: string }): Array<CreateSectionDto> {
+    const sections: Array<CreateSectionDto>  = [];
+    if (/^p.ev03/.test(doc.name)) {
+        const lines = doc.text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
+        const descMap = new Map();
+        lines.forEach((line, row) => {
+            if (/^「/.test(line)) {
+                descMap.set(line, `*${lines[row - 1]}*`);
+            } else {
+                descMap.set(line, '');
+            }
+        });
+        descMap.forEach((v, k) => sections.push(new CreateSectionDto(k, v)));
+    }
+    else if (/^BattleTalkEvent/.test(doc.name)) {
+        const lines = doc.text.split('\r\n').filter(e => e !== String.fromCharCode(65279)).slice(1);
+        for (let i = 0; i < lines.length; i += 2) {
+            sections.push(new CreateSectionDto(lines[0], `*${lines[i + 1]}*`));
+        }
+    }
+    else if (/^Harlem[a-zA-Z]?Text/.test(doc.name)) {
+        const segs= doc.text.split('\r\n\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
+        segs.forEach(seg=>{
+            if (seg.startsWith('＠')) {
+                const name = seg.split('\r\n')[0].split('＠')[1];
+                const talk = seg.split('\r\n').slice(1).join('\r\n');
+                sections.push(new CreateSectionDto(talk, `(＠)*${name}*`));
+            } else {
+                sections.push(new CreateSectionDto(seg));
+            }
+        });
+    }
     return sections;
 }
 
@@ -81,41 +106,6 @@ export function attachRemarks(title: string, sections: Array<CreateSectionDto>, 
     return remarkedSections || sections;
 }
 
-export async function updateDoc(file: CreateFileDto, meta: DBFileMeta, filesModel: DBFileModel, timestamp: string): Promise<CreateFileInfoDto> {
-    try {
-        let doc = await filesModel.findOne({ meta: file.meta, name: file.name }).exec();
-        if (doc) {
-            doc.lastUpdated = timestamp;
-            for (const sec of file.raw) {
-                sec.lastUpdated = timestamp;
-                const secLoc = meta.reincarnation ? doc.search(sec, 'hash') : doc.search(sec, 'inFileId');
-                const contraposition = doc.getSection(secLoc);
-                if (!contraposition) {
-                    doc.addSections([sec]);
-                }
-                else if (contraposition.hash === sec.hash && contraposition.inFileId === sec.inFileId) {
-                    contraposition.lastUpdated = timestamp;
-                    continue;
-                }
-                else if (contraposition.hash === sec.hash && contraposition.inFileId !== sec.inFileId && meta.reincarnation) {
-                    contraposition.inFileId = sec.inFileId;
-                    contraposition.lastUpdated = timestamp;
-                }
-                else if (contraposition.hash !== sec.hash && contraposition.inFileId === sec.inFileId && !meta.reincarnation) {
-                    doc.resetSection(secLoc, sec);
-                }
-                doc.published = false;
-            }
-            doc.save();
-        } else {
-            doc = await filesModel.createFile(file, timestamp);
-        }
-        return Promise.resolve(doc.getFileInfo());
-    } catch (err) {
-        return Promise.reject(err);
-    }
-}
-
 function referSplitRule(title: string): (text: string) => Array<string> {
     if (/^Harlem[a-zA-Z]?Text/.test(title)) {
         return (text: string): Array<string> => text.split('\r\n\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
@@ -131,11 +121,7 @@ function referSplitRule(title: string): (text: string) => Array<string> {
     }
     else if (/^BattleTalkEvent/.test(title)) {
         return (text) => {
-            const lines = text.split('\r\n').filter(e => e !== String.fromCharCode(65279)).slice(1);
-            const sections = [];
-            for (let i = 0; i < lines.length; i += 2) {
-                sections.push(lines.slice(i, i + 2).join('\r\n'));
-            }
+
             return sections;
         };
     }
@@ -144,47 +130,40 @@ function referSplitRule(title: string): (text: string) => Array<string> {
     }
 }
 
-async function takeText(file: string, rootDir: string): Promise<Array<{ name: string, text: string }>> {
-    const rawTexts: Array<{ name: string, text: string }> = [];
-    const fextname = path.extname(file);
-    const fbasename = path.basename(file, fextname);
-    function checkAndAppend(txtName, txt) {
-        if (txt.trim()) {
-            rawTexts.push({name: path.join(fbasename, txtName), text: txt});
+function takeText(fileName: string, ALData: AL): Array<{ name: string, text: string }> {
+    let rawTexts: Array<{ name: string, text: string }> = [];
+    function filterFutile() {
+        if (/^p.ev03/.test(fileName)) {
+            rawTexts = rawTexts.filter(e => e.name.endsWith('_evtxt.atb'));
         }
     }
-    try {
-        let fileDir = path.join(rootDir, fbasename);
-        if (/^p.ev03/.test(file)) {
-            const actDirs = fs.readdirSync(fileDir);
-            actDirs.forEach(dir => {
-                const text = fs.readFileSync(path.join(fileDir, dir, '_evtxt.txt'), 'utf8');
-                checkAndAppend(dir, text);
-            });
-        }
-        else if (/^BattleTalkEvent[0-9]+/.test(fbasename)) {
-            const text = fs.readFileSync(path.join(fileDir, 'BattleTalkEvent.txt'), 'utf8');
-            checkAndAppend(fbasename, text);
-        }
-        else if (fextname === '.aar') {
-            const files = fs.readdirSync(fileDir);
-            files.forEach(f => {
-                const p = path.join(fileDir, f);
-                if (fs.statSync(p).isFile() && path.extname(f) === '.txt') {
-                    checkAndAppend(path.basename(f, '.txt'), fs.readFileSync(p, 'utf8'));
+
+    switch (ALData.Head) {
+        case 'ALAR':
+            for (const subAAR of ALData.entry) {
+                if (path.extname(subAAR.Name) !== '.txt') {
+                    rawTexts = rawTexts.concat(takeText(path.join(path.basename(fileName, '.aar'), subAAR.Name), subAAR.Content));
+                } else {
+                    rawTexts.push({name: subAAR.Name, text: subAAR.Content});
                 }
-            });
-        }
-        else {
-            fileDir += '.txt';
-            if (fs.statSync(fileDir).isFile()) {
-                checkAndAppend(fbasename, fs.readFileSync(fileDir, 'utf8'));
             }
-        }
-        fs.remove(fileDir);
-    } catch (err) {
-        console.log('Err in taking texts\n', err);
-        return Promise.reject(err);
+            filterFutile();
+            break;
+        case 'ALTB':
+            let content = '';
+            for (const key in ALData.StringField) {
+                if (ALData.StringField.hasOwnProperty(key)) {
+                    const s = ALData.StringField[key].replace(/\n/g, '\\n');
+                    content += s + '\r\n';
+                }
+            }
+            content = content.trim();
+            if (content) {
+                rawTexts.push({ name: fileName, text: content });
+            }
+        default:
+            break;
     }
-    return Promise.resolve(rawTexts);
+    return rawTexts;
+
 }

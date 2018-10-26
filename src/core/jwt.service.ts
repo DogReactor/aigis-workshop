@@ -12,7 +12,7 @@ export interface JsonWebToken {
 export class JsonWebTokenService {
     private sign = 'I have a dream.';
 
-    public Sign(object: object) {
+    public Sign(object: JsonWebToken) {
         return jwt.sign(object, this.sign, {
             expiresIn: '24h',
         });

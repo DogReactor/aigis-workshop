@@ -8,151 +8,124 @@ import { CmUpdateDto } from './dto/communication.dto';
 import { CreateFileMetaDto, CreateFileDto, StoreKeys, CreateCommitDto } from './dto/assets.dto';
 import { DBFileMeta, DBFileModel, DBSection } from './interface/assets.interface';
 
+const requestFiles = [
+    'AbilityList.atb',
+    'AbilityText.atb',
+    'BattleTalkEvent',
+    // 'GloryConditionConfig',
+    'HarlemEventText0.aar',
+    'HarlemEventText1.aar',
+    'HarlemText.aar',
+    'NameText.atb',
+    'prev03.aar',
+    'paev03.aar',
+    'pcev03.aar',
+    'PlayerTitle.atb',
+    'PlayerUnitTable.aar',
+    'MessageText',
+    'QuestEventText',
+    'QuestNameText',
+    'RewardText',
+    'SkillList.atb',
+    'SkillText.atb',
+    'StatusText.atb',
+    'StoryMissionConfig.atb',
+    'SystemText.atb',
+    'UiText.atb',
+];
+
 @Injectable()
 export class AssetsService {
+    private fileListVersion: string;
+    private filesVersion: object;
     constructor(
         private readonly httpService: HttpService,
-        @Inject(Constants.FileMetaModelToken) private readonly fileMetaModel: Model<DBFileMeta>,
         @Inject(Constants.FilesModelToken) private readonly filesModel: DBFileModel,
-    ) { }
+    ) {
+        const verObj = JSON.parse(fs.readFileSync('file_versions.json', 'utf8'));
+        this.fileListVersion = verObj.fileListVersion || '';
+        this.filesVersion = verObj.filesVersion || {};
+    }
     async getFile(fileRequest: FileRequest): Promise<Array<Section>> {
-        const file = await this.filesModel.findOne({ meta: fileRequest.meta, name: fileRequest.name }).exec();
-        let sections: Array<DBSection> = [];
-        if (fileRequest.model === WorkModel.Reading) {
-            sections = file.raw.concat(file.translated, file.corrected, file.embellished);
-        } else {
-            sections = file[StoreKeys[fileRequest.model - 1]];
-        }
-        return Promise.resolve(sections);
+        return Promise.resolve();
     }
+
+    // 我来写
     async contract(proposal: ContractProposal) {
-        const file = await this.filesModel.findOne({ meta: proposal.meta, name: proposal.name }).exec();
-        if (!proposal.user.authorities.includes(proposal.permission)) {
-            return Promise.reject('Permission denied');
-        }
-        const store = file[StoreKeys[proposal.permission]];
-        switch (proposal.method) {
-            case ContractedMethods.all:
-                store.forEach(s => s.contract(proposal));
-                break;
-            case ContractedMethods.random:
-                const number = proposal.number && proposal.number <= 0 ? Math.floor(Math.random() * store.length) : proposal.number;
-                let count = 0;
-                for (const section of store) {
-                    if (count < number) {
-                        count = section.contract(proposal) ? count + 1 : count;
-                    } else {
-                        break;
-                    }
-                }
-                break;
-            case ContractedMethods.select:
-                if (proposal.hashes) {
-                    for (const hash of proposal.hashes) {
-                        store.find(s => s.hash === hash).contract(proposal);
-                    }
-                }
-                break;
-        }
-        file.save();
         return Promise.resolve('ok');
     }
+
+    // 我来写
     async submitWork(submitedWork: SubmitWork) {
-        const file = await this.filesModel.findOne({ meta: submitedWork.meta, name: submitedWork.name }).exec();
-        if (!submitedWork.user.authorities.includes(submitedWork.permission)) {
-            return Promise.reject('Permission denied');
-        }
-        const store = file[StoreKeys[submitedWork.permission]];
-        const nextStore = file[StoreKeys[submitedWork.permission + 1]];
-        for (const work of submitedWork.works) {
-            const sectionId = store.findIndex(s => s.hash === work.hash);
-            const section = store[sectionId];
-            section.text = work.text;
-            section.contractor = '';
-            section.commits.push(new CreateCommitDto(submitedWork, work.text));
-            nextStore.push(section);
-            section.splice(sectionId, 1);
-        }
-        file.save();
+
         return Promise.resolve('ok');
     }
-    async getFilesInfo() {
-        const metas = await this.fileMetaModel.find({ title: { $ne: 'file-list' } }).exec();
-        return metas.map(meta => {
-            return {
-                meta: meta.title,
-                filesInfo: meta.filesInfo,
-            };
-        });
-    }
+
+
+    // 参考update.operations
     async updateWeekly(updateCommand: CmUpdateDto) {
-        const fileListMeta = await this.fileMetaModel.findOne({ title: 'file-list' }).exec();
-        // here toObject() just to avoid warning from ts that type object has no attribute 'Version'.
-        if (fileListMeta.toObject().filePaths.Version === updateCommand.fileListMark) {
-            return 'need not update';
+
+        if (this.fileListVersion === updateCommand.fileListMark) {
+            return Promise.reject('need not update');
         }
         const date = new Date();
         const timestamp = date.toLocaleString();
 
         const fileList: Map<string, string> = await getFileList(updateCommand.fileListMark, this.httpService);
-        const filesMeta = await this.fileMetaModel.find({ title: { $ne: 'file-list' } }).exec();
-        for (const meta of filesMeta) {
-            // 删除这个await可以让所有meta并行处理
+        const updatingFiles: Array<Array<any>> = [];
+        for (const [fileName, filePath] of fileList.entries()) {
+            const flag = fileName.split('.')[0];
+            const meta = requestFiles.find((v) => fileName.includes(v));
+            if (meta && this.filesVersion[fileName] !== filePath) {
+                let models = await this.filesModel.find({ name: { $in: new RegExp('^' + flag) } }).exec();
+                models = models || [];
+                updatingFiles.push([
+                    fileName,
+                    filePath,
+                    models.filter(m => m.originPath !== filePath),
+                ]);
+            }
+        }
+        for (const [fileName, path, models] of updatingFiles) {
             await (async () => {
-                const updatingMeta = new CreateFileMetaDto(meta.title, meta.nameRegex, meta.desc, meta.reincarnation);
-                for (const [fileName, filePath] of fileList.entries()) {
-                    const reg = new RegExp(meta.nameRegex);
-                    if (reg.test(fileName) && meta.filePaths[fileName] !== filePath) {
-                        updatingMeta.filePaths[fileName] = filePath;
-                    }
-                }
-                for (const dlFile of Object.keys(updatingMeta.filePaths)) {
-                    // 删除这个await可以让这个meta需要update的数个文件并行请求
-                    await (async () => {
-                        try {
-                            let rawSections = (await fetchFile(dlFile, updatingMeta.filePaths[dlFile], this.httpService))
-                                                .map(t => splitToSections(t));
-                            rawSections = rawSections.map(t => attachRemarks(meta.title, t, updateCommand.remarks));
-                            const files = rawSections.map(t => new CreateFileDto(t, meta));
-
-                            for (const f of files) {
-                                // 删除这个await可以让所有条目一起入库
-                                // 但建议一条一条来，不然我那个破服务器怕是会炸。多的文本几千条，同时入库我怕撑不住
-                                await (async () => {
-                                    let docInfo;
-                                    try {
-                                        docInfo = await updateDoc(f, meta, this.filesModel, timestamp);
-                                    } catch (err) {
-                                        fs.appendFile('update.err',
-                                            `Failed in updating oc from ${dlFile}, path ${updatingMeta.filePaths[dlFile]}, [${timestamp}]\r\n`,
-                                            { flag: 'a+' });
-                                    }
-                                    meta.updateInfo(docInfo);
-                                    meta.filePaths[dlFile] = updatingMeta.filePaths[dlFile];
-                                })();
-                            }
-                            console.log(`${dlFile} updated!`);
-                        } catch (err) {
-                            console.log(err);
+                try {
+                    const rawTexts = await fetchFile(fileName, path, this.httpService);
+                    for (const doc of rawTexts) {
+                        const sections = splitToSections(doc);
+                        const docModel = models.find(m => m.name === doc.name);
+                        if(!docModel) {
+                            
                         }
-                    })();
+                    }
+                    rawSections = rawSections.map(t => attachRemarks(meta.title, t, updateCommand.remarks));
+                    const files = rawSections.map(t => new CreateFileDto(t, meta));
+
+                    for (const f of files) {
+                        // 删除这个await可以让所有条目一起入库
+                        // 但建议一条一条来，不然我那个破服务器怕是会炸。多的文本几千条，同时入库我怕撑不住
+                        await (async () => {
+                            let docInfo;
+                            try {
+                                docInfo = await updateDoc(f, meta, this.filesModel, timestamp);
+                            } catch (err) {
+                                fs.appendFile('update.err',
+                                    `Failed in updating oc from ${file}, path ${updatingFiles.filePaths[file]}, [${timestamp}]\r\n`,
+                                    { flag: 'a+' });
+                            }
+                            meta.updateInfo(docInfo);
+                            meta.filePaths[file] = updatingFiles.filePaths[file];
+                        })();
+                    }
+                    console.log(`${file} updated!`);
+                } catch (err) {
+                    console.log(err);
                 }
-                console.log(`meta ${meta} done`);
-                meta.markModified('filePaths');
-                meta.save();
             })();
         }
-
-        // update file list version only if all files updated
-        fileListMeta.set({
-            filePaths: {
-                Version: updateCommand.fileListMark,
-            },
-        });
-        fileListMeta.save();
 
         return 'OK';
     }
 
+    // 我来实现
     async PackTranslations() { }
 }
