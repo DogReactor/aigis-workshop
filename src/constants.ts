@@ -35,6 +35,6 @@ export enum WorkModel { Reading, Translating, Correcting, Embellishing, Publishi
 
 export enum UserAuthority { Translator, Corrector, Embellisher, Administor }
 
-export enum SectionStatus { Raw, Translated, Corrected, Polished, Published }
+export enum SectionStatus { Raw, Translated, Corrected, Polished, Modified }
 
 export enum ContractedMethods { random, all, select }

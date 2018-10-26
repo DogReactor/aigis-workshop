@@ -5,7 +5,8 @@ import { HttpService } from '@nestjs/common';
 import { map } from 'rxjs/operators';
 import { parseAL } from 'aigis-fuel';
 import { CreateSectionDto, CreateFileDto, CreateFileInfoDto } from '../dto/assets.dto';
-import { DBFileMeta, DBFileModel } from 'assets/interface/assets.interface';
+import { FileModel } from 'assets/interface/assets.interface';
+import { Model } from 'mongoose';
 
 export async function getFileList(fileListMark, httpService: HttpService): Promise<Map<string, string>> {
     const fileListPostfix = {
@@ -81,7 +82,14 @@ export function attachRemarks(title: string, sections: Array<CreateSectionDto>, 
     return remarkedSections || sections;
 }
 
-export async function updateDoc(file: CreateFileDto, meta: DBFileMeta, filesModel: DBFileModel, timestamp: string): Promise<CreateFileInfoDto> {
+// ????
+// ?file?fullpath??aar?????name??????????????file( if findOne(filename) is undefined )
+// ????????file???? (??????file??????)
+// ???????????file (new filesModel,?????addSections)
+// ??save
+// ??????????????(BattleTalkEvent?StatusText)
+
+export async function updateDoc(file: CreateFileDto, filesModel: Model<FileModel>, timestamp: number): Promise<CreateFileInfoDto> {
     try {
         let doc = await filesModel.findOne({ meta: file.meta, name: file.name }).exec();
         if (doc) {
@@ -150,7 +158,7 @@ async function takeText(file: string, rootDir: string): Promise<Array<{ name: st
     const fbasename = path.basename(file, fextname);
     function checkAndAppend(txtName, txt) {
         if (txt.trim()) {
-            rawTexts.push({name: path.join(fbasename, txtName), text: txt});
+            rawTexts.push({ name: path.join(fbasename, txtName), text: txt });
         }
     }
     try {

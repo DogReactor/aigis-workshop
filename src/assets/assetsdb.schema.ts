@@ -33,7 +33,7 @@ SectionSchema.methods.contract = function(proposal: ContractProposal): boolean {
         return true;
     }
     return false;
-}
+};
 
 export const FileSchema = new mongoose.Schema({
     name: String,
