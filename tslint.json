@@ -7,6 +7,7 @@
         "no-unused-expression": true
     },
     "rules": {
+        "space-before-function-paren": false,
         "no-bitwise": false,
         "eofline": false,
         "only-arrow-functions": false,
@@ -37,7 +38,7 @@
         ],
         "no-console": [
             false
-          ],
+        ],
         "no-empty-interface": false,
         "no-empty": false,
         "arrow-parens": false,

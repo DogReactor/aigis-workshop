@@ -25,8 +25,8 @@ export interface SectionModel extends Document {
     time: number;
   } | null;
   getCommit(id: ObjectId): CommitModel;
-  publishCommit(id: ObjectId): boolean;
-  addCommit(commit: CreateCommitDto): boolean;
+  publishCommit(id: ObjectId): Promise<boolean>;
+  addCommit(commit: CreateCommitDto): Promise<boolean>;
   contract(proposal: ObjectId): Promise<boolean>; // 应当立刻承包，传入user的objectID
 }
 
@@ -38,7 +38,6 @@ export interface FileModel extends Document {
   assetsPath: string;         // 更新的时候用来判断文件是否发生变化
   lastUpdated: number;
   lastPublished: number;
-  contractedNumber: number;   // 这个是计算出来的
   sections: ObjectId[];
   getSections?(start?: number, end?: number): SectionModel[];
   getPublishedText?(): string[];
@@ -46,6 +45,7 @@ export interface FileModel extends Document {
   addSections?(section: Array<CreateSectionDto>);
   resetSection?(token: object, section: CreateSectionDto);
   contractSections(start?: number, end?: number);
+  getFileInfo(): {};  // virtual?
 }
 
 // getPublishedText: 取出sections中publish不为null的，然后map结果，通过getCommit()来取出publish的Commit，以及originCommit的Commit，origin \t publish 返回。 如果性能堪忧，这里考虑做一下缓存。
