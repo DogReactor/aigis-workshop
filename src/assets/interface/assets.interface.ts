@@ -1,7 +1,19 @@
-import { Document, Model } from 'mongoose';
+import { Document, Model, SchemaTypes } from 'mongoose';
 import { CreateSectionDto, CreateFileDto, CreateCommitDto, CreateFileInfoDto } from '../dto/assets.dto';
 import { ObjectID, ObjectId } from 'bson';
 import { SectionStatus } from '../../constants';
+
+export interface ArchiveModel extends Document {
+  readonly dlName: string;
+  files: [{
+    name: string;
+    hash: string;
+    ref: ObjectId;
+  }];
+  path: string;
+  updateFileInfo(uname: string, uhash: string, uref: ObjectId, infoIndex: number);
+}
+
 
 // Commit是Section的SubDocument
 export interface CommitModel extends Document {

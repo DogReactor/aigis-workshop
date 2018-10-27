@@ -2,6 +2,9 @@ import * as crypto from 'crypto';
 import * as path from 'path';
 import { SectionStatus } from '../../constants';
 import { SubmitWork } from '../interface/service.interface';
+import { ObjectId } from 'bson';
+
+
 
 export class CreateFileInfoDto {
     sectionsNumber: number;
@@ -28,19 +31,12 @@ export class CreateFileMetaDto {
 
 export const StoreKeys = ['raw', 'translated', 'corrected', 'embellished'];
 export class CreateFileDto {
-    name: string;
-    meta: string;
     lastUpdated: string = '';
     lastPublished: string = '';
     contractedNumber: number = 0;
-    translated: Array<CreateSectionDto> = [];
-    corrected: Array<CreateSectionDto> = [];
-    embellished: Array<CreateSectionDto> = [];
+    sections: Array<ObjectId> = [];
     published: boolean = false;
-    constructor(public raw: Array<CreateSectionDto>, meta: CreateFileMetaDto) {
-        this.name = path.basename(this.raw[0].superFile);
-        this.meta = meta.title;
-    }
+    constructor(public name: string) {}
 }
 
 export class CreateCommitDto {
@@ -65,7 +61,7 @@ export class CreateSectionDto{
     text: string = '';
     commits: Array<CreateCommitDto> = [];
     lastUpdated: string;
-    desc: string = '';
+    desc: string;
     contractInfo: {
         contractor: string;
         time: string;
@@ -73,12 +69,11 @@ export class CreateSectionDto{
         contractor: '',
         time: '',
     };
-    constructor(public inFileId: number,
-                public origin: string,
-                public superFile: string) {
-        const md5 = crypto.createHash('md5');
-        md5.update(this.origin);
-        md5.update(this.inFileId.toString());
-        this.hash = md5.digest('hex');
+    constructor(
+        public origin: string,
+        desc?: string,
+    ) {
+        
+        this.desc = desc || '';
     }
 }

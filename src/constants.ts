@@ -16,7 +16,7 @@ export class BadRequestMessage {
 
 export class Constants {
     public static get UserModelToken() { return 'UserModelToken'; }
-    public static get FileMetaModelToken() { return 'FilesMetaModelToken'; }
+    public static get ArchivesModelToken() { return 'ArchivesModelToken'; }
     public static get FilesModelToken() { return 'FilesModelToken'; }
     public static get DbConnectionToken() { return 'DbConnectionToken'; }
 

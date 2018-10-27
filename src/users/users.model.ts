@@ -37,10 +37,3 @@ export class UserSessionDto {
     _id: string;
     ip?: string;
 }
-
-
-
-export class UserAuthorities {
-    username: string;
-    authorities: Array<UserAuthority>;
-}

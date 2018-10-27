@@ -1,5 +1,5 @@
-import { UserAuthorities } from '../../users/users.model';
-import { WorkModel, SectionStatus, ContractedMethods } from '../../constants';
+import { User } from '../../users/users.interface';
+import { WorkModel, SectionStatus, ContractedMethods, UserAuthority } from '../../constants';
 
 export interface UpdateCommand {
     fileListMark: string;
@@ -9,15 +9,14 @@ export interface UpdateCommand {
 export interface FileRequest {
     name: string;
     meta: string;
-    user: UserAuthorities;
     model: WorkModel;
 }
 
 export interface SubmitWork {
     works: Array<{ hash: string, text: string }>;
-    type: SectionStatus;
+    permission: UserAuthority;
     name: string;
     meta: string;
     time: string;
-    author: UserAuthorities;
+    user: User;
 }

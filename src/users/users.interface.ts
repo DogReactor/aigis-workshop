@@ -1,4 +1,5 @@
 import { Document } from 'mongoose';
+import { UserAuthority } from '../constants';
 
 export interface User extends Document {
     username: string;
@@ -6,5 +7,6 @@ export interface User extends Document {
     mail: string;
     nickname: string;
     sign: string;
+    authorities: [UserAuthority];
     qq?: string;
 }

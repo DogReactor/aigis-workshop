@@ -7,4 +7,5 @@ export const UsersSchema = new mongoose.Schema({
     nickname: String,
     sign: String,
     qq: String,
+    authorities: Array,
 });
