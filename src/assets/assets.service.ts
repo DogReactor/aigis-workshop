@@ -4,11 +4,12 @@ import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { Constants, WorkModel, ContractedMethods } from '../constants';
-import { FileRequest, SubmitWork, ContractProposal, Section } from './interface/service.interface';
+import { FileRequest, SubmitWork } from './interface/service.interface';
 import { getFileList, fetchFile, splitToSections } from './operations/update.operation';
 import { CmUpdateDto } from './dto/communication.dto';
 import { CreateFileMetaDto, CreateFileDto, StoreKeys, CreateCommitDto } from './dto/assets.dto';
-import { ArchiveModel } from './interface/assets.interface';
+import { ArchiveModel, FileModel, SectionModel } from './interface/assets.interface';
+import { ObjectId } from 'bson';
 
 const requestFiles = [
     'AbilityList.atb',
@@ -47,14 +48,14 @@ export class AssetsService {
     constructor(
         private readonly httpService: HttpService,
         @Inject(Constants.ArchivesModelToken) private readonly ArchivesModel: Model<ArchiveModel>,
-        @Inject(Constants.FilesModelToken) private readonly filesModel: DBFileModel,
+        @Inject(Constants.FilesModelToken) private readonly filesModel: Model<FileModel>,
     ) { }
-    async getFile(fileRequest: FileRequest): Promise<Array<Section>> {
-        return Promise.resolve();
+    async getFile(fileRequest: FileRequest): Promise<Array<SectionModel>> {
+        return;
     }
 
     // 我来写
-    async contract(proposal: ContractProposal) {
+    async contract(proposal: ObjectId) {
         return Promise.resolve('ok');
     }
 
@@ -66,7 +67,7 @@ export class AssetsService {
 
     // 参考update.operations
     async updateWeekly(updateCommand: CmUpdateDto) {
-        this.fileListVersion = this.fileListVersion || (await this.ArchivesModel.findOne({dlName: 'file-list'}).exec()).path;
+        this.fileListVersion = this.fileListVersion || (await this.ArchivesModel.findOne({ dlName: 'file-list' }).exec()).path;
         if (this.fileListVersion === updateCommand.fileListMark) {
             return Promise.reject('need not updating');
         }
@@ -94,7 +95,7 @@ export class AssetsService {
                             const sections = splitToSections(rawText, updateCommand.remarks);
                             const docModel = await this.filesModel.findOne(m => m.name === rawText.name).exec() ||
                                 await this.filesModel.create(new CreateFileDto(rawText.name));
-                            const newSections = sections.filter(s => !docModel.sections.find(se => se.hash === s.hash));
+                            const newSections = sections.filter(s => !docModel.sections.find(se => se === s.hash));
                             docModel.appendSections(newSections);
                             archive.updateFileInfo(rawText.name, textHash, docModel._id, infoIndex);
                         }

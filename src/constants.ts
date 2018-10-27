@@ -19,6 +19,9 @@ export class Constants {
     public static get ArchivesModelToken() { return 'ArchivesModelToken'; }
     public static get FilesModelToken() { return 'FilesModelToken'; }
     public static get DbConnectionToken() { return 'DbConnectionToken'; }
+    public static get SectionsModelToken() {
+        return 'SectionsModelToken';
+    }
 
     public static get PASSWORD_ERROR() { return '密码错误'; }
     public static get PASSWORD_USERNAME_ERROR() { return '用户名或密码错误'; }
@@ -29,6 +32,8 @@ export class Constants {
 
     public static get NO_TOKEN() { return '没有Token'; }
     public static get TOKEN_ERROR() { return 'Token错误'; }
+
+    public static get NO_SPECIFIED_COMMIT() { return '在指定的Section中找不到指定的Commit'; }
 }
 
 export enum WorkModel { Reading, Translating, Correcting, Embellishing, Publishing }

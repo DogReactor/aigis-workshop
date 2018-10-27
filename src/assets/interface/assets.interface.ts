@@ -1,4 +1,4 @@
-import { Document, Model, SchemaTypes } from 'mongoose';
+import { Document, Model, Types } from 'mongoose';
 import { CreateSectionDto, CreateFileDto, CreateCommitDto, CreateFileInfoDto } from '../dto/assets.dto';
 import { ObjectID, ObjectId } from 'bson';
 import { SectionStatus } from '../../constants';
@@ -14,9 +14,8 @@ export interface ArchiveModel extends Document {
   updateFileInfo(uname: string, uhash: string, uref: ObjectId, infoIndex: number);
 }
 
-
 // Commit是Section的SubDocument
-export interface CommitModel extends Document {
+export interface Commit extends Types.Subdocument {
   readonly author: ObjectId;
   readonly time: number;
   readonly text: string;
@@ -25,39 +24,48 @@ export interface CommitModel extends Document {
 }
 
 // Section以引用的方式存放于File的Sections[]中
-export interface SectionModel extends Document {
+export interface Section extends Document {
   readonly hash: string;
-  readonly commits: CommitModel[];
+  readonly commits: Types.DocumentArray<Commit>;
   readonly rawCommit: ObjectId;
   lastCommit: ObjectId;
+  translated: boolean;
+  corrected: boolean;
+  polished: boolean;
+  lastPublish: number;
+  lastUpdated: number;
   publish: ObjectId | null;
   desc?: string;
   contractInfo: {
     contractor: ObjectId;
     time: number;
   } | null;
-  getCommit(id: ObjectId): CommitModel;
+  getCommit(id: ObjectId): Commit;
   publishCommit(id: ObjectId): Promise<boolean>;
   addCommit(commit: CreateCommitDto): Promise<boolean>;
   contract(proposal: ObjectId): Promise<boolean>; // 应当立刻承包，传入user的objectID
+}
+export interface SectionModel extends Model<Section> {
+  hasSection(string): Promise<Section | null>;
 }
 
 // addCommit: 可以由客户端直接发送sectionId和createCommitDto来添加Commit，不需要通过File了。
 
 // File应当是大部分时候的入口
-export interface FileModel extends Document {
+export interface File extends Document {
   name: string;
   assetsPath: string;         // 更新的时候用来判断文件是否发生变化
   lastUpdated: number;
   lastPublished: number;
-  sections: ObjectId[];
-  getSections?(start?: number, end?: number): SectionModel[];
+  sections: string[];
+  getSections(): Promise<Section[]>;
   getPublishedText?(): string[];
-  hasSection(hash: string): boolean;
-  addSections?(section: Array<CreateSectionDto>);
-  resetSection?(token: object, section: CreateSectionDto);
+  appendSections?(section: Array<CreateSectionDto>): Promise<number>;
   contractSections(start?: number, end?: number);
   getFileInfo(): {};  // virtual?
+}
+export interface FileModel extends Model<File> {
+  createFile(file: CreateFileDto): File;
 }
 
 // getPublishedText: 取出sections中publish不为null的，然后map结果，通过getCommit()来取出publish的Commit，以及originCommit的Commit，origin \t publish 返回。 如果性能堪忧，这里考虑做一下缓存。
