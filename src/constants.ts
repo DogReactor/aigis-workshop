@@ -16,7 +16,7 @@ export class BadRequestMessage {
 
 export class Constants {
     public static get UserModelToken() { return 'UserModelToken'; }
-    public static get FileMetaModelToken() { return 'FilesMetaModelToken'; }
+    public static get ArchivesModelToken() { return 'ArchivesModelToken'; }
     public static get FilesModelToken() { return 'FilesModelToken'; }
     public static get DbConnectionToken() { return 'DbConnectionToken'; }
 
@@ -35,6 +35,6 @@ export enum WorkModel { Reading, Translating, Correcting, Embellishing, Publishi
 
 export enum UserAuthority { Translator, Corrector, Embellisher, Administor }
 
-export enum SectionStatus { Raw, Translated, Corrected, Polished, Published }
+export enum SectionStatus { Raw, Translated, Corrected, Polished, Modified }
 
 export enum ContractedMethods { random, all, select }

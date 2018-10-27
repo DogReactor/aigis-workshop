@@ -17,7 +17,7 @@ export class TokenVerifyMiddleware implements NestMiddleware {
         return async (req: Request, res: Response, next) => {
             try {
                 if (!req.body.token || !(this.jwt.Verify(req.body.token))) throw Constants.NO_TOKEN;
-                const obj = this.jwt.Verify(req.body.token);
+                const obj = this.jwt.Verify(req.body.token) as any;
                 if (!obj._id || !obj.password) throw Constants.TOKEN_ERROR;
                 const user = await this.usersService.FindUser(obj._id, true);
                 if (!user || user.password !== obj.password) throw Constants.TOKEN_ERROR;
