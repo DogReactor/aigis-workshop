@@ -36,31 +36,34 @@ ArchiveSchema.methods.updateFileInfo = async function (uname: string, uhash: str
 };
 
 export const CommitSchema = new mongoose.Schema({
-    author: ObjectId,
+    author: mongoose.Schema.Types.ObjectId,
     time: Number,
     text: String,
     type: Number,
-    origin: ObjectId,
+    origin: mongoose.Schema.Types.ObjectId,
 });
 
 export const SectionSchema = new mongoose.Schema({
     hash: String,
+    parent: [{
+        type: mongoose.Schema.Types.ObjectId,
+    }],
     commits: [CommitSchema],
-    rawCommit: ObjectId,
-    lastCommit: ObjectId,
+    rawCommit: mongoose.Schema.Types.ObjectId,
+    lastPolishCommit: mongoose.Schema.Types.ObjectId,
     translated: Boolean,
     corrected: Boolean,
     polished: Boolean,
     lastPublish: Number,
     lastUpdated: Number,
-    publish: { type: ObjectId, default: null },
+    publish: { type: mongoose.Schema.Types.ObjectId, default: null },
     desc: { type: String, default: null },
     contractInfo: {
         type: {
-            contractor: ObjectId,
+            contractor: mongoose.Schema.Types.ObjectId,
             time: Number,
         },
-        default: null,
+        default: undefined,
     },
 });
 
@@ -94,12 +97,10 @@ SectionSchema.methods.addCommit = async function (commit: CreateCommitDto) {
     if (commit.type === SectionStatus.Polished) {
         this.set('lastUpdated', (new Date()).getTime());
     }
-    try {
-        await this.save();
-        return true;
-    } catch (err) {
-        throw err;
-    }
+    await this.save();
+    return true;
+
+    // Todo: 更新所属文件的相关字段
 };
 
 SectionSchema.methods.contract = async function (id: ObjectId) {
@@ -115,10 +116,27 @@ SectionSchema.methods.contract = async function (id: ObjectId) {
     }
 };
 
+SectionSchema.methods.verifyContractor = function (id: ObjectId) {
+    if (!this.contractInfo) return false;
+    return this.contractInfo.contractor === id;
+};
+
 SectionSchema.statics.hasSection = async function (hash: string) {
     const r = this.findOne({ hash }).exec();
     if (r) return r;
     else return null;
+};
+
+SectionSchema.statics.createSection = async function (sectionDto: CreateSectionDto) {
+    const section = new this(CreateSectionDto);
+    await this.save();
+    await section.addCommit({
+        author: 'raw',
+        time: (new Date()).getTime(),
+        type: SectionStatus.Raw,
+        origin: null,
+    });
+    return section;
 };
 
 export const FileSchema = new mongoose.Schema({
@@ -134,6 +152,10 @@ export const FileSchema = new mongoose.Schema({
     },
     sections: [{
         type: String,
+    }],
+    contractors: [{
+        user: mongoose.Schema.Types.ObjectId,
+        count: Number,
     }],
 });
 
@@ -157,25 +179,82 @@ FileSchema.methods.getPublishedText = async function () {
 
 FileSchema.methods.appendSections = async function (sections: Array<CreateSectionDto>) {
     let count = 0;
+    let newFile = false;
+    if (this.sections.length === 0) newFile = true;
     for (const sectionDto of sections) {
         // 尝试加入section
-        try {
-            const section = new this.Model('section')(sectionDto);
-            await section.save();   // 如果hash已经存在，那么这一步应该throw
-
-            this.sections.push(section.hash); // 因为hash不存在，所以不需要考虑已经存在的事。
-        } catch (err) {
-            // 如果err.code是110000即hash重复，那么检查this.sections里是否包含该hash，如果没有就push
-            if (!this.sections.find(v => sectionDto.hash === v)) {
-                this.sections.push(sectionDto.hash);
+        let add = false;
+        let section = await this.Model('section').findOne({ hash: sectionDto.hash }).exec() as Section;
+        if (!section) {
+            section = await this.Model('section').createSection(sectionDto); // 如果hash已经存在，那么这一步应该throw
+            add = true;
+        } else {
+            if (newFile || !this.sections.find(v => sectionDto.hash === v)) {
+                add = true;
             }
         }
-        count++;
+        if (add) {
+            this.sections.push(sectionDto.hash);
+            count++;
+            // section那边加上文件的信息，保证同步
+            section.parent.push(this._id);
+            await section.save();
+        }
     }
-    try {
-        this.save();
-        return count;
-    } catch (err) {
-        throw err;
+    await this.save();
+    return count;
+};
+
+FileSchema.methods.contractSections = async function (user: ObjectId, count: number) {
+    let result = 0;
+    for (const hash of this.sections) {
+        if (count <= 0) break;
+        const section = await this.Model('section').findOne({ hash }).exec() as Section;
+        if (!section) { throw Constants.NO_SPECIFIED_SECTION; } // ????
+        if (!section.contractInfo) {
+            await section.contract(user);
+            count--; result++;
+        }
     }
+    let contractor = this.contractors.find(v => user === v.user);
+    if (!contractor) {
+        contractor = {
+            user,
+            count: 0,
+        };
+        this.contractors.push(contractor);
+    }
+    contractor.count += result;
+    await this.save();
+    return result;
+};
+
+FileSchema.methods.getContractedSections = async function (user: ObjectId) {
+    const sections = [];
+    for (const hash of this.sections) {
+        const section = await this.Model('section').findOne({ hash }).exec() as Section;
+        if (!section) { throw Constants.NO_SPECIFIED_SECTION; } // ????
+        if (section.verifyContractor(user)) sections.push(section);
+    }
+    return sections;
+
+    // TODO: 只返回没翻译过的
+};
+
+FileSchema.methods.getSections = async function (start?: number, count?: number) {
+    const sectionDocs = [];
+    const end = count ? start + count : undefined;
+    const sections = start ? this.sections.splice(start, end) : this.sections;
+    for (const hash of sections) {
+        const section = await this.Model('section').findOne({ hash }).exec() as Section;
+        if (!section) { throw Constants.NO_SPECIFIED_SECTION; } // ???
+        sectionDocs.push(section);
+    }
+    return sectionDocs;
+};
+
+FileSchema.methods.getFileInfo = async function (detail: boolean) {
+    // 翻译过的 校对过的 润色过的 发布的
+    // 发布的时候，要查询文件上次发布到现在为止新增的卡数 (绿色)
+    // 以及修改过的卡数 (橙色)
 };

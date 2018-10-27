@@ -1,7 +1,7 @@
 import { Document, Model, Types } from 'mongoose';
 import { CreateSectionDto, CreateFileDto, CreateCommitDto, CreateFileInfoDto } from '../dto/assets.dto';
 import { ObjectID, ObjectId } from 'bson';
-import { SectionStatus } from '../../constants';
+import { SectionStatus, FileType } from '../../constants';
 
 export interface ArchiveModel extends Document {
   readonly dlName: string;
@@ -28,7 +28,8 @@ export interface Section extends Document {
   readonly hash: string;
   readonly commits: Types.DocumentArray<Commit>;
   readonly rawCommit: ObjectId;
-  lastCommit: ObjectId;
+  parent: ObjectId[];
+  lastPolishCommit: ObjectId;
   translated: boolean;
   corrected: boolean;
   polished: boolean;
@@ -44,6 +45,7 @@ export interface Section extends Document {
   publishCommit(id: ObjectId): Promise<boolean>;
   addCommit(commit: CreateCommitDto): Promise<boolean>;
   contract(proposal: ObjectId): Promise<boolean>; // 应当立刻承包，传入user的objectID
+  verifyContractor(id: ObjectId): boolean;
 }
 export interface SectionModel extends Model<Section> {
   hasSection(string): Promise<Section | null>;
@@ -58,10 +60,11 @@ export interface File extends Document {
   lastUpdated: number;
   lastPublished: number;
   sections: string[];
-  getSections(): Promise<Section[]>;
-  getPublishedText?(): string[];
+  type: FileType;
+  getSections(start?: number, count?: number): Promise<Section[]>;
+  getPublishedText?(): Promise<string[]>;
   appendSections?(section: Array<CreateSectionDto>): Promise<number>;
-  contractSections(start?: number, end?: number);
+  contractSections(count: number): Promise<number>;
   getFileInfo(): {};  // virtual?
 }
 export interface FileModel extends Model<File> {

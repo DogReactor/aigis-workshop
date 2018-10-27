@@ -34,46 +34,20 @@ export class CreateFileDto {
     lastUpdated: string = '';
     lastPublished: string = '';
     contractedNumber: number = 0;
-    sections: Array<ObjectId> = [];
+    sections: Array<string> = [];
     published: boolean = false;
-    constructor(public name: string) {}
+    constructor(public name: string) { }
 }
 
 export class CreateCommitDto {
     author: string;
-    id: string;
     time: string;
-    type: SectionStatus = SectionStatus.Raw;
-    constructor(work: SubmitWork, public text: string) {
-        this.author = work.author.username;
-        this.time = work.time;
-        this.type = work.type;
-        const md5 = crypto.createHash('md5');
-        md5.update(this.author);
-        md5.update(text);
-        md5.update(this.time);
-        this.id = md5.digest('hex');
-    }
+    type: SectionStatus;
+    origin: ObjectId;
 }
 
-export class CreateSectionDto{
+export class CreateSectionDto {
     hash: string;
-    text: string = '';
-    commits: Array<CreateCommitDto> = [];
-    lastUpdated: string;
     desc: string;
-    contractInfo: {
-        contractor: string;
-        time: string;
-    } = {
-        contractor: '',
-        time: '',
-    };
-    constructor(
-        public origin: string,
-        desc?: string,
-    ) {
-        
-        this.desc = desc || '';
-    }
+    origin: string;
 }

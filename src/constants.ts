@@ -34,6 +34,7 @@ export class Constants {
     public static get TOKEN_ERROR() { return 'Token错误'; }
 
     public static get NO_SPECIFIED_COMMIT() { return '在指定的Section中找不到指定的Commit'; }
+    public static get NO_SPECIFIED_SECTION() { return '没有指定的Section'; }
 }
 
 export enum WorkModel { Reading, Translating, Correcting, Embellishing, Publishing }
@@ -43,3 +44,8 @@ export enum UserAuthority { Translator, Corrector, Embellisher, Administor }
 export enum SectionStatus { Raw, Translated, Corrected, Polished, Modified }
 
 export enum ContractedMethods { random, all, select }
+
+export enum FileType {
+    Section,
+    TXT,
+}
