@@ -73,7 +73,10 @@ export class CreateSectionDto{
         public origin: string,
         desc?: string,
     ) {
-        
         this.desc = desc || '';
+        const md5 = crypto.createHash('md5');
+        md5.update(origin);
+        md5.update(this.desc);
+        this.hash = md5.digest('hex');
     }
 }
