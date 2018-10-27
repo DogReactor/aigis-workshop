@@ -36,7 +36,7 @@ export async function getFileList(fileListMark, httpService: HttpService): Promi
 export async function fetchFile(fileName: string, refPath: string, httpService: HttpService): Promise<Array<{ name: string, text: string }>> {
     try {
         const fileBuffer = await downloadAsset(refPath, httpService);
-        const al = parseAL(fileBuffer)
+        const al = parseAL(fileBuffer);
         const texts = await takeText(fileName, al);
         return texts;
     } catch (err) {
@@ -55,10 +55,10 @@ async function downloadAsset(filePath, httpService: HttpService): Promise<Buffer
     return httpService.request(reqOption).pipe(map(r => r.data)).toPromise();
 }
 
-export function splitToSections(doc: { name: string, text: string }): Array<CreateSectionDto> {
-    const sections: Array<CreateSectionDto>  = [];
-    if (/^p.ev03/.test(doc.name)) {
-        const lines = doc.text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
+export function splitToSections(rawText: { name: string, text: string }, remarks: any): Array<CreateSectionDto> {
+    let sections: Array<CreateSectionDto>  = [];
+    if (/^p.ev03/.test(rawText.name)) {
+        const lines = rawText.text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
         const descMap = new Map();
         lines.forEach((line, row) => {
             if (/^「/.test(line)) {
@@ -69,65 +69,45 @@ export function splitToSections(doc: { name: string, text: string }): Array<Crea
         });
         descMap.forEach((v, k) => sections.push(new CreateSectionDto(k, v)));
     }
-    else if (/^BattleTalkEvent/.test(doc.name)) {
-        const lines = doc.text.split('\r\n').filter(e => e !== String.fromCharCode(65279)).slice(1);
+    else if (/^BattleTalkEvent/.test(rawText.name)) {
+        const lines = rawText.text.split('\r\n').filter(e => e !== String.fromCharCode(65279)).slice(1);
         for (let i = 0; i < lines.length; i += 2) {
             sections.push(new CreateSectionDto(lines[0], `*${lines[i + 1]}*`));
         }
     }
-    else if (/^Harlem[a-zA-Z]?Text/.test(doc.name)) {
-        const segs= doc.text.split('\r\n\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
-        segs.forEach(seg=>{
+    else if (/^Harlem[a-zA-Z]?Text/.test(rawText.name)) {
+        const segs = rawText.text.split('\r\n\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
+        const descMap = new Map();
+        segs.forEach(seg => {
             if (seg.startsWith('＠')) {
                 const name = seg.split('\r\n')[0].split('＠')[1];
                 const talk = seg.split('\r\n').slice(1).join('\r\n');
-                sections.push(new CreateSectionDto(talk, `(＠)*${name}*`));
+                descMap.set(name, '');
+                descMap.set(talk, `(＠)*${name}*`);
             } else {
-                sections.push(new CreateSectionDto(seg));
+                descMap.set(seg, '');
             }
         });
+        descMap.forEach((v, k) => sections.push(new CreateSectionDto(k, v)));
     }
-    return sections;
-}
-
-export function attachRemarks(title: string, sections: Array<CreateSectionDto>, remarks: any): Array<CreateSectionDto> {
-
-    let remarkedSections = null;
-    if (remarks) {
-        if (title === 'StatusText' && remarks.hasOwnProperty('CardsInfo')) {
-            remarkedSections = sections.map(s => s);
-            remarks.CardsInfo.Flavor.forEach(e => {
-                for (let i = e.StartIndex; i < e.EndIndex; ++i) {
-                    remarkedSections[i].desc = 'Flavor talk ' + (i - e.StartIndex + 1) + ' of ' + e.Name;
-                }
-            });
-        }
-    }
-    return remarkedSections || sections;
-}
-
-function referSplitRule(title: string): (text: string) => Array<string> {
-    if (/^Harlem[a-zA-Z]?Text/.test(title)) {
-        return (text: string): Array<string> => text.split('\r\n\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
-    }
-    else if (/^p.ev03/.test(title)) {
-        return (text) => {
-            const lines = text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
-            const nameIndex = lines.findIndex(t => /^「/.test(t));
-            const name = lines[nameIndex - 1];
-            return lines.filter(txt => txt !== name)
-                .map(talk => /^「/.test(talk) ? name + '\r\n' + talk : talk);
-        };
-    }
-    else if (/^BattleTalkEvent/.test(title)) {
-        return (text) => {
-
-            return sections;
-        };
+    else if (remarks && /^StatusText/.test(rawText.name) && remarks.hasOwnProperty('CardsInfo')) {
+        const lines = rawText.text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
+        const desc = lines.map(l => '');
+        remarks.CardsInfo.Flavor.forEach(e => {
+            for (let i = e.StartIndex; i < e.EndIndex; ++i) {
+                desc[i] = `Flavor talk ${(i - e.StartIndex + 1)} of ${e.Name}`;
+            }
+        });
+        lines.forEach((l,i)=>{
+            sections.push(new CreateSectionDto(l ,desc[i]));
+        });
     }
     else {
-        return (text) => text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
+        sections = rawText.text.split('\r\n')
+            .filter(e => e !== '' && e !== String.fromCharCode(65279))
+            .map(s => new CreateSectionDto(s));
     }
+    return sections;
 }
 
 function takeText(fileName: string, ALData: AL): Array<{ name: string, text: string }> {

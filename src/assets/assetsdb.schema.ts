@@ -3,6 +3,33 @@ import * as mongoose from 'mongoose';
 import { CreateSectionDto, CreateFileInfoDto, CreateCommitDto, CreateFileDto, StoreKeys } from './dto/assets.dto';
 import { DBSection } from './interface/assets.interface';
 import { ContractProposal } from './interface/service.interface';
+import { ObjectId } from 'bson';
+
+export const ArchiveSchema = new mongoose.Schema({
+    dlName: String,
+    files: [{
+        name: String,
+        hash: String,
+        ref: ObjectId,
+    }],
+    path: String,
+});
+
+ArchiveSchema.methods.updateFileInfo = function (uname: string, uhash: string, uref: ObjectId, infoIndex: number) {
+    if (infoIndex !== -1) {
+        this.files[infoIndex].hash = uhash;
+        this.files[infoIndex].ref = uref;
+    } else {
+        this.files.push({
+            name: uname,
+            hash: uhash,
+            ref: uref,
+        });
+    }
+    this.MarkModified('files');
+    this.save();
+};
+
 
 export const CommitSchema = new mongoose.Schema({
     author: String,

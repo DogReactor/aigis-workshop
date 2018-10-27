@@ -2,6 +2,9 @@ import * as crypto from 'crypto';
 import * as path from 'path';
 import { SectionStatus } from '../../constants';
 import { SubmitWork } from '../interface/service.interface';
+import { ObjectId } from 'bson';
+
+
 
 export class CreateFileInfoDto {
     sectionsNumber: number;
@@ -28,19 +31,12 @@ export class CreateFileMetaDto {
 
 export const StoreKeys = ['raw', 'translated', 'corrected', 'embellished'];
 export class CreateFileDto {
-    name: string;
-    meta: string;
     lastUpdated: string = '';
     lastPublished: string = '';
     contractedNumber: number = 0;
-    translated: Array<CreateSectionDto> = [];
-    corrected: Array<CreateSectionDto> = [];
-    embellished: Array<CreateSectionDto> = [];
+    sections: Array<ObjectId> = [];
     published: boolean = false;
-    constructor(public raw: Array<CreateSectionDto>, meta: CreateFileMetaDto) {
-        this.name = path.basename(this.raw[0].superFile);
-        this.meta = meta.title;
-    }
+    constructor(public name: string) {}
 }
 
 export class CreateCommitDto {
@@ -77,9 +73,7 @@ export class CreateSectionDto{
         public origin: string,
         desc?: string,
     ) {
-        const md5 = crypto.createHash('md5');
-        md5.update(this.origin);
-        this.hash = md5.digest('hex');
+        
         this.desc = desc || '';
     }
 }

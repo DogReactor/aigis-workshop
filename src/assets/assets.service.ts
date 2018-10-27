@@ -1,12 +1,14 @@
 import { Injectable, HttpService, Inject } from '@nestjs/common';
 import { Model } from 'mongoose';
 import * as fs from 'fs-extra';
+import * as path from 'path';
+import * as crypto from 'crypto';
 import { Constants, WorkModel, ContractedMethods } from '../constants';
 import { FileRequest, SubmitWork, ContractProposal, Section } from './interface/service.interface';
-import { getFileList, fetchFile, splitToSections, attachRemarks, updateDoc } from './operations/update.operation';
+import { getFileList, fetchFile, splitToSections } from './operations/update.operation';
 import { CmUpdateDto } from './dto/communication.dto';
 import { CreateFileMetaDto, CreateFileDto, StoreKeys, CreateCommitDto } from './dto/assets.dto';
-import { DBFileMeta, DBFileModel, DBSection } from './interface/assets.interface';
+import { ArchiveModel } from './interface/assets.interface';
 
 const requestFiles = [
     'AbilityList.atb',
@@ -34,18 +36,19 @@ const requestFiles = [
     'UiText.atb',
 ];
 
+function generateHash(text: string): string {
+    const md5 = crypto.createHash('md5');
+    md5.update(text);
+    return md5.digest('hex');
+}
 @Injectable()
 export class AssetsService {
     private fileListVersion: string;
-    private filesVersion: object;
     constructor(
         private readonly httpService: HttpService,
+        @Inject(Constants.ArchivesModelToken) private readonly ArchivesModel: Model<ArchiveModel>,
         @Inject(Constants.FilesModelToken) private readonly filesModel: DBFileModel,
-    ) {
-        const verObj = JSON.parse(fs.readFileSync('file_versions.json', 'utf8'));
-        this.fileListVersion = verObj.fileListVersion || '';
-        this.filesVersion = verObj.filesVersion || {};
-    }
+    ) { }
     async getFile(fileRequest: FileRequest): Promise<Array<Section>> {
         return Promise.resolve();
     }
@@ -61,69 +64,57 @@ export class AssetsService {
         return Promise.resolve('ok');
     }
 
-
     // 参考update.operations
     async updateWeekly(updateCommand: CmUpdateDto) {
-
+        this.fileListVersion = this.fileListVersion || (await this.ArchivesModel.findOne({dlName: 'file-list'}).exec()).path;
         if (this.fileListVersion === updateCommand.fileListMark) {
-            return Promise.reject('need not update');
+            return Promise.reject('need not updating');
         }
-        const date = new Date();
-        const timestamp = date.toLocaleString();
 
-        const fileList: Map<string, string> = await getFileList(updateCommand.fileListMark, this.httpService);
-        const updatingFiles: Array<Array<any>> = [];
-        for (const [fileName, filePath] of fileList.entries()) {
-            const flag = fileName.split('.')[0];
-            const meta = requestFiles.find((v) => fileName.includes(v));
-            if (meta && this.filesVersion[fileName] !== filePath) {
-                let models = await this.filesModel.find({ name: { $in: new RegExp('^' + flag) } }).exec();
-                models = models || [];
-                updatingFiles.push([
-                    fileName,
-                    filePath,
-                    models.filter(m => m.originPath !== filePath),
-                ]);
-            }
-        }
-        for (const [fileName, path, models] of updatingFiles) {
-            await (async () => {
-                try {
-                    const rawTexts = await fetchFile(fileName, path, this.httpService);
-                    for (const doc of rawTexts) {
-                        const sections = splitToSections(doc);
-                        const docModel = models.find(m => m.name === doc.name);
-                        if(!docModel) {
-                            
+        try {
+            const fileList: Map<string, string> = await getFileList(updateCommand.fileListMark, this.httpService);
+            for (const [fileName, filePath] of fileList.entries()) {
+                if (!requestFiles.find((v) => fileName.includes(v))) {
+                    continue;
+                }
+                const archive = (await this.ArchivesModel.findOne({ dlNname: fileName }).exec()) ||
+                    (await this.ArchivesModel.create({ dlName: fileName, files: [], path: '' }));
+                if (archive.path === filePath) {
+                    continue;
+                }
+                await (async () => {
+                    try {
+                        const rawTexts = await fetchFile(fileName, filePath, this.httpService);
+                        for (const rawText of rawTexts) {
+                            const textHash = generateHash(rawText.text);
+                            const infoIndex = archive.files.findIndex(f => f.name === rawText.name);
+                            if (infoIndex !== -1 && archive.files[infoIndex].hash === textHash) {
+                                continue;
+                            }
+                            const sections = splitToSections(rawText, updateCommand.remarks);
+                            const docModel = await this.filesModel.findOne(m => m.name === rawText.name).exec() ||
+                                await this.filesModel.create(new CreateFileDto(rawText.name));
+                            const newSections = sections.filter(s => !docModel.sections.find(se => se.hash === s.hash));
+                            docModel.appendSections(newSections);
+                            archive.updateFileInfo(rawText.name, textHash, docModel._id, infoIndex);
                         }
                     }
-                    rawSections = rawSections.map(t => attachRemarks(meta.title, t, updateCommand.remarks));
-                    const files = rawSections.map(t => new CreateFileDto(t, meta));
-
-                    for (const f of files) {
-                        // 删除这个await可以让所有条目一起入库
-                        // 但建议一条一条来，不然我那个破服务器怕是会炸。多的文本几千条，同时入库我怕撑不住
-                        await (async () => {
-                            let docInfo;
-                            try {
-                                docInfo = await updateDoc(f, meta, this.filesModel, timestamp);
-                            } catch (err) {
-                                fs.appendFile('update.err',
-                                    `Failed in updating oc from ${file}, path ${updatingFiles.filePaths[file]}, [${timestamp}]\r\n`,
-                                    { flag: 'a+' });
-                            }
-                            meta.updateInfo(docInfo);
-                            meta.filePaths[file] = updatingFiles.filePaths[file];
-                        })();
+                    catch (err) {
+                        fs.appendFile('update.err',
+                            `Failed in updating ${fileName}, path ${filePath}\r\n`,
+                            { flag: 'a+' });
                     }
-                    console.log(`${file} updated!`);
-                } catch (err) {
-                    console.log(err);
-                }
-            })();
+                });
+            }
+            const fileListInfo = await this.ArchivesModel.findOne({ dlName: 'file-list' }).exec();
+            this.fileListVersion = updateCommand.fileListMark;
+            fileListInfo.path = updateCommand.fileListMark;
+            fileListInfo.save();
+        } catch (err) {
+            console.log('Failed in updating\n', err);
+            return Promise.reject('Failed in updating');
         }
-
-        return 'OK';
+        return 'ok';
     }
 
     // 我来实现
