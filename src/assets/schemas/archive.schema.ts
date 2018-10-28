@@ -1,5 +1,5 @@
 import * as mongoose from 'mongoose';
-import { CreateSectionDto,  CreateCommitDto, CreateFileDto, StoreKeys } from '../dto/assets.dto';
+import { CreateSectionDto,  CreateCommitDto, CreateFileDto, CreateArchiveDto } from '../dto/assets.dto';
 import { ObjectId } from 'bson';
 import { SectionStatus, Constants } from '../../constants';
 import { Section, Commit, SectionModel } from '../interface/assets.interface';
@@ -14,6 +14,16 @@ export const ArchiveSchema = new mongoose.Schema({
     path: String,
 });
 
+ArchiveSchema.statics.getArchive = async function (archiveDto: CreateArchiveDto) {
+    let doc = await this.findOne({dlName: archiveDto.dlName}).exec();
+    if (doc) {
+        return doc;
+    } else {
+        doc = new this(archiveDto);
+        return await doc.save();
+    }
+};
+
 ArchiveSchema.methods.updateFileInfo = async function (uname: string, uhash: string, uref: ObjectId, infoIndex: number) {
     if (infoIndex !== -1) {
         this.files[infoIndex].hash = uhash;
@@ -25,11 +35,11 @@ ArchiveSchema.methods.updateFileInfo = async function (uname: string, uhash: str
             ref: uref,
         });
     }
-    this.MarkModified('files');
+    this.markModified('files');
     try {
         await this.save();
-        return true;
+        return Promise.resolve('ok');
     } catch (err) {
-        throw err;
+        return Promise.reject(err);
     }
 };

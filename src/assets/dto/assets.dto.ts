@@ -1,16 +1,12 @@
-import * as crypto from 'crypto';
-import * as path from 'path';
 import { SectionStatus, FileType } from '../../constants';
 import { ObjectId } from 'bson';
 
 export const StoreKeys = ['raw', 'translated', 'corrected', 'embellished'];
-export interface CreateFileDto {
-    name: string;
-    assetsPath: string;
-    type: FileType;
+export class CreateFileDto {
+    constructor(public name: string, public assetsPath: string, public type: FileType) { }
 }
 
-export interface CreateCommitDto {
+export class CreateCommitDto {
     author?: ObjectId;
     time: number;
     type: SectionStatus;
@@ -18,8 +14,14 @@ export interface CreateCommitDto {
     originCommit?: ObjectId;
 }
 
-export interface CreateSectionDto {
+export class CreateSectionDto {
     hash?: string;
-    desc?: string;
-    originText: string;
+    constructor(
+        public originText: string,
+        public desc: string = '',
+    ) { }
+}
+
+export class CreateArchiveDto {
+    constructor(public dlName, public files: Array<string> = [], public path: string = ''){}
 }

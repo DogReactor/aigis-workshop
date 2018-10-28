@@ -5,7 +5,7 @@ import * as jwt from 'jsonwebtoken';
 export interface JsonWebToken {
     _id: string;
     password: string;
-    authorities: [UserAuthority];
+    authorities?: [UserAuthority];
 }
 
 @Injectable()

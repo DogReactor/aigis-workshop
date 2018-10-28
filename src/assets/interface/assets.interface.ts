@@ -1,9 +1,9 @@
 import { Document, Model, Types } from 'mongoose';
-import { CreateSectionDto, CreateFileDto, CreateCommitDto } from '../dto/assets.dto';
+import { CreateSectionDto, CreateFileDto, CreateCommitDto, CreateArchiveDto } from '../dto/assets.dto';
 import { ObjectID, ObjectId } from 'bson';
 import { SectionStatus, FileType } from '../../constants';
 
-export interface ArchiveModel extends Document {
+export interface Archive extends Document {
   readonly dlName: string;
   files: [{
     name: string;
@@ -11,7 +11,11 @@ export interface ArchiveModel extends Document {
     ref: ObjectId;
   }];
   path: string;
-  updateFileInfo(uname: string, uhash: string, uref: ObjectId, infoIndex: number): number;
+  updateFileInfo(uname: string, uhash: string, uref: ObjectId, infoIndex: number);
+}
+
+export interface ArchiveModel extends Model<Archive> {
+  getArchive(CreateArchiveDto);
 }
 
 // Commit是Section的SubDocument

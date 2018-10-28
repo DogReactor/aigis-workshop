@@ -5,9 +5,9 @@ import { ObjectId } from 'bson';
 import { SectionStatus, Constants } from '../../constants';
 import { Section, Commit, SectionModel, FileModel, File } from '../interface/assets.interface';
 
-function generateHash(text: string): string {
+function generateHash(texts: Array<string>): string {
     const md5 = crypto.createHash('md5');
-    md5.update(text);
+    texts.forEach(t => md5.update(t));
     return md5.digest('hex');
 }
 
@@ -42,9 +42,8 @@ export const FileSchema = new mongoose.Schema({
 
 FileSchema.index({ name: 1 });
 
-FileSchema.statics.createFile = async function (this: FileModel, file: CreateFileDto, force?: boolean) {
+FileSchema.statics.createFile = async function (file: CreateFileDto, force?: boolean) {
     let doc = await this.findOne({ name: file.name }).exec();
-    if (!force && doc && doc.assetsPath === file.assetsPath) return null;
     if (doc === null) doc = new this(file);
     doc.lastUpdated = (new Date()).getTime();
     doc.assetsPath = file.assetsPath;
@@ -64,7 +63,7 @@ FileSchema.methods.getPublishedText = async function () {
     return texts;
 };
 
-FileSchema.methods.mergeSections = async function (this: File, sections: Array<CreateSectionDto>) {
+FileSchema.methods.mergeSections = async function (sections: Array<CreateSectionDto>) {
     this.lastUpdated = (new Date()).getTime();
     let count = 0;
     let newFile = false;
@@ -73,7 +72,7 @@ FileSchema.methods.mergeSections = async function (this: File, sections: Array<C
         // 尝试加入section
         let add = false;
         if (!sectionDto.hash) {
-            sectionDto.hash = generateHash(sectionDto.originText);
+            sectionDto.hash = generateHash([sectionDto.originText, sectionDto.desc]);
         }
         let section = await (this.model('section') as any as SectionModel).hasSection(sectionDto.hash);
         if (!section) {
@@ -99,7 +98,7 @@ FileSchema.methods.mergeSections = async function (this: File, sections: Array<C
     return count;
 };
 
-FileSchema.methods.contractSections = async function (this: File, user: ObjectId, count: number) {
+FileSchema.methods.contractSections = async function (user: ObjectId, count: number) {
     let result = 0;
     for (const hash of this.sections) {
         if (count <= 0) break;
@@ -123,7 +122,7 @@ FileSchema.methods.contractSections = async function (this: File, user: ObjectId
     return result;
 };
 
-FileSchema.methods.getContractedSections = async function (this: File, user: ObjectId) {
+FileSchema.methods.getContractedSections = async function (user: ObjectId) {
     const sections = [];
     for (const hash of this.sections) {
         const section = await this.model('section').findOne({ hash }).exec() as any as Section;
@@ -135,7 +134,7 @@ FileSchema.methods.getContractedSections = async function (this: File, user: Obj
     // TODO: 只返回没翻译过的
 };
 
-FileSchema.methods.getSections = async function (this: File, start?: number, count?: number) {
+FileSchema.methods.getSections = async function (start?: number, count?: number) {
     const sectionDocs = [];
     const end = start && count ? start + count : undefined;
     const sections = start ? this.sections.splice(start, end) : this.sections;

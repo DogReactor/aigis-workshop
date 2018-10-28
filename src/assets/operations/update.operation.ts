@@ -1,19 +1,16 @@
-import * as fs from 'fs-extra';
 import * as path from 'path';
-import * as crypto from 'crypto';
+import * as fs from 'fs-extra';
 import { HttpService } from '@nestjs/common';
 import { map } from 'rxjs/operators';
 import { parseAL, AL } from 'aigis-fuel';
-import { CreateSectionDto, CreateFileDto, CreateFileInfoDto } from '../dto/assets.dto';
-import { FileModel } from 'assets/interface/assets.interface';
-import { Model } from 'mongoose';
+import { CreateSectionDto } from '../dto/assets.dto';
 
-export async function getFileList(fileListMark, httpService: HttpService): Promise<Map<string, string>> {
+export async function getFileList(fileListMark, httpService: HttpService): Promise<Array<[string, string]>> {
     const fileListPostfix = {
         N: '/2iofz514jeks1y44k7al2ostm43xj085',
         R: '/1fp32igvpoxnb521p9dqypak5cal0xv0',
     };
-    const fileList: Map<string, string> = new Map();
+    const fileList: Array<[string, string]> = [];
     for (const flag of Object.keys(fileListPostfix)) {
         try {
             const fileListPath = fileListMark + fileListPostfix[flag];
@@ -24,7 +21,9 @@ export async function getFileList(fileListMark, httpService: HttpService): Promi
             const csvData = csvString.split('\n');
             csvData.forEach(line => {
                 const d = line.split(',');
-                fileList.set(d[4], '/' + d[0] + '/' + d[1]);
+                if (d[4]) {
+                    fileList.push([d[4], '/' + d[0] + '/' + d[1]]);
+                }
             });
         } catch (err) {
             console.log('Err in fetching files list:\n', err);
@@ -56,7 +55,7 @@ async function downloadAsset(filePath, httpService: HttpService): Promise<Buffer
 }
 
 export function splitToSections(rawText: { name: string, text: string }, remarks: any): Array<CreateSectionDto> {
-    let sections: Array<CreateSectionDto>  = [];
+    let sections: Array<CreateSectionDto> = [];
     if (/^p.ev03/.test(rawText.name)) {
         const lines = rawText.text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
         const descMap = new Map();
@@ -98,8 +97,8 @@ export function splitToSections(rawText: { name: string, text: string }, remarks
                 desc[i] = `Flavor talk ${(i - e.StartIndex + 1)} of ${e.Name}`;
             }
         });
-        lines.forEach((l,i)=>{
-            sections.push(new CreateSectionDto(l ,desc[i]));
+        lines.forEach((l, i) => {
+            sections.push(new CreateSectionDto(l, desc[i]));
         });
     }
     else {
@@ -120,11 +119,12 @@ function takeText(fileName: string, ALData: AL): Array<{ name: string, text: str
 
     switch (ALData.Head) {
         case 'ALAR':
-            for (const subAAR of ALData.entry) {
+            for (const subAAR of ALData.Files) {
                 if (path.extname(subAAR.Name) !== '.txt') {
                     rawTexts = rawTexts.concat(takeText(path.join(path.basename(fileName, '.aar'), subAAR.Name), subAAR.Content));
                 } else {
-                    rawTexts.push({name: subAAR.Name, text: subAAR.Content});
+
+                    rawTexts.push({ name: subAAR.Name, text: subAAR.Content.Content });
                 }
             }
             filterFutile();
