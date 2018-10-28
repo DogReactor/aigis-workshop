@@ -7,7 +7,7 @@ import { Constants, WorkModel, ContractedMethods } from '../constants';
 import { FileRequest, SubmitWork } from './interface/service.interface';
 import { getFileList, fetchFile, splitToSections } from './operations/update.operation';
 import { CmUpdateDto } from './dto/communication.dto';
-import { CreateFileMetaDto, CreateFileDto, StoreKeys, CreateCommitDto } from './dto/assets.dto';
+import { CreateFileDto, StoreKeys, CreateCommitDto } from './dto/assets.dto';
 import { ArchiveModel, FileModel, SectionModel } from './interface/assets.interface';
 import { ObjectId } from 'bson';
 
@@ -48,7 +48,7 @@ export class AssetsService {
     constructor(
         private readonly httpService: HttpService,
         @Inject(Constants.ArchivesModelToken) private readonly ArchivesModel: Model<ArchiveModel>,
-        @Inject(Constants.FilesModelToken) private readonly filesModel: Model<FileModel>,
+        @Inject(Constants.FilesModelToken) private readonly filesModel: FileModel,
     ) { }
     async getFile(fileRequest: FileRequest): Promise<Array<SectionModel>> {
         return;
@@ -96,7 +96,7 @@ export class AssetsService {
                             const docModel = await this.filesModel.findOne(m => m.name === rawText.name).exec() ||
                                 await this.filesModel.create(new CreateFileDto(rawText.name));
                             const newSections = sections.filter(s => !docModel.sections.find(se => se === s.hash));
-                            docModel.appendSections(newSections);
+                            docModel.mergeSections(newSections);
                             archive.updateFileInfo(rawText.name, textHash, docModel._id, infoIndex);
                         }
                     }
