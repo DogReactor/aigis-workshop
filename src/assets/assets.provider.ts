@@ -1,6 +1,8 @@
 import { Connection } from 'mongoose';
-import { FileSchema, ArchiveSchema, SectionSchema } from './assetsdb.schema';
+import { ArchiveSchema } from './schemas/archive.schema';
 import { Constants } from '../constants';
+import { FileSchema } from './schemas/file.schema';
+import { SectionSchema } from './schemas/section.schema';
 
 export const AssetsProviders = [
     {

@@ -1,5 +1,5 @@
 import { Document, Model, Types } from 'mongoose';
-import { CreateSectionDto, CreateFileDto, CreateCommitDto, CreateFileInfoDto } from '../dto/assets.dto';
+import { CreateSectionDto, CreateFileDto, CreateCommitDto } from '../dto/assets.dto';
 import { ObjectID, ObjectId } from 'bson';
 import { SectionStatus, FileType } from '../../constants';
 
@@ -11,7 +11,7 @@ export interface ArchiveModel extends Document {
     ref: ObjectId;
   }];
   path: string;
-  updateFileInfo(uname: string, uhash: string, uref: ObjectId, infoIndex: number);
+  updateFileInfo(uname: string, uhash: string, uref: ObjectId, infoIndex: number): number;
 }
 
 // Commit是Section的SubDocument
@@ -20,35 +20,38 @@ export interface Commit extends Types.Subdocument {
   readonly time: number;
   readonly text: string;
   readonly type: SectionStatus;
-  readonly origin: ObjectId;
+  readonly children: ObjectId[];
 }
 
 // Section以引用的方式存放于File的Sections[]中
 export interface Section extends Document {
   readonly hash: string;
   readonly commits: Types.DocumentArray<Commit>;
-  readonly rawCommit: ObjectId;
+  rawCommit: ObjectId;
   parent: ObjectId[];
-  lastPolishCommit: ObjectId;
+  lastPolishCommit: ObjectId | null;
+  publishedCommit: ObjectId | null;
   translated: boolean;
   corrected: boolean;
   polished: boolean;
-  lastPublish: number;
-  lastUpdated: number;
-  publish: ObjectId | null;
-  desc?: string;
+  modified: boolean;
+  lastPublish: number | null;
+  lastUpdated: number | null;
+  desc: string | null;
   contractInfo: {
     contractor: ObjectId;
     time: number;
   } | null;
   getCommit(id: ObjectId): Commit;
   publishCommit(id: ObjectId): Promise<boolean>;
-  addCommit(commit: CreateCommitDto): Promise<boolean>;
+  addCommit(commit: CreateCommitDto): Promise<Commit>;
   contract(proposal: ObjectId): Promise<boolean>; // 应当立刻承包，传入user的objectID
   verifyContractor(id: ObjectId): boolean;
 }
 export interface SectionModel extends Model<Section> {
-  hasSection(string): Promise<Section | null>;
+  hasSection(hash: string): Promise<Section | null>;
+  createSection(sectionDto: CreateSectionDto): Promise<Section>;
+  getModified(start?: number, count?: number): Promise<Section[]>;
 }
 
 // addCommit: 可以由客户端直接发送sectionId和createCommitDto来添加Commit，不需要通过File了。
@@ -57,20 +60,23 @@ export interface SectionModel extends Model<Section> {
 export interface File extends Document {
   name: string;
   assetsPath: string;         // 更新的时候用来判断文件是否发生变化
-  lastUpdated: number;
-  lastPublished: number;
-  sections: string[];
   type: FileType;
+  lastUpdated: number;
+  translated: number;
+  corrected: number;
+  polished: number;
+  sections: string[];
+  constructors: {
+    user: ObjectId,
+    count: number,
+  }[];
+
   getSections(start?: number, count?: number): Promise<Section[]>;
   getPublishedText?(): Promise<string[]>;
-  appendSections?(section: Array<CreateSectionDto>): Promise<number>;
+  mergeSections(section: Array<CreateSectionDto>): Promise<number>;
   contractSections(count: number): Promise<number>;
-  getFileInfo(): {};  // virtual?
+  getContractedSections(user: ObjectId): Promise<Section>;
 }
 export interface FileModel extends Model<File> {
-  createFile(file: CreateFileDto): File;
+  createFile(file: CreateFileDto, force?: boolean): Promise<File | null>;
 }
-
-// getPublishedText: 取出sections中publish不为null的，然后map结果，通过getCommit()来取出publish的Commit，以及originCommit的Commit，origin \t publish 返回。 如果性能堪忧，这里考虑做一下缓存。
-
-// addSections: UpdateWeekly的时候，先hasSection检查是否存在，如果不存在则addSections([newsection])。若这个fileDocument本身就是新的，则直接addSections([allSections])
