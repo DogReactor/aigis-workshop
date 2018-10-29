@@ -3,7 +3,7 @@ import { Model } from 'mongoose';
 import * as fs from 'fs-extra';
 import * as path from 'path';
 import * as crypto from 'crypto';
-import { Constants, WorkModel, ContractedMethods, FileType } from '../constants';
+import { Constants, WorkModel, ContractedMethods, FileType, SectionStatus } from '../constants';
 import { FileRequest, SubmitWork } from './interface/service.interface';
 import { getFileList, fetchFile, splitToSections } from './operations/update.operation';
 import { CmUpdateDto } from './dto/communication.dto';
@@ -51,19 +51,62 @@ export class AssetsService {
         @Inject(Constants.FilesModelToken) private readonly filesModel: FileModel,
         @Inject(Constants.SectionsModelToken) private readonly sectionsModel: SectionModel,
     ) { }
-    async getFile(fileRequest: FileRequest): Promise<Array<SectionModel>> {
-        return;
+
+    async getFile(id: string) {
+        const file = await this.filesModel.findOne({ _id: id }).exec();
+        return file;
+    }
+    async getFiles(reg?: string, skip?: number, limit?: number) {
+        const query: any = {};
+        if (reg) query.name = {
+            $regex: reg,
+        };
+        let filesPointer = this.filesModel.find(query, { sections: 0 });
+        if (skip) filesPointer = filesPointer.skip(skip);
+        if (limit) filesPointer = filesPointer.limit(limit);
+        return await filesPointer.exec();
     }
 
-    // 我来写
-    async contract(proposal: ObjectId) {
-        return Promise.resolve('ok');
+    async contract(fileid: string, proposal: string, count: number) {
+        const file = await this.filesModel.findById(fileid).exec();
+        if (!file) throw Constants.FILE_NOT_FOUND;
+        else {
+            await file.contractSections(proposal, count);
+            return true;
+        }
     }
 
-    // 我来写
+    async getContractedSection(fileid: string, user: string) {
+        const file = await this.filesModel.findById(fileid).exec();
+        if (!file) throw Constants.FILE_NOT_FOUND;
+        else {
+            return await file.getContractedSections(user);
+        }
+    }
+    async getSections(fileid: string, skip?: number, limit?: number) {
+        const file = await this.filesModel.findById(fileid).exec();
+        if (!file) throw Constants.FILE_NOT_FOUND;
+        else {
+            return await file.getSections(skip, limit);
+        }
+    }
+
     async submitWork(submitedWork: SubmitWork) {
-
-        return Promise.resolve('ok');
+        for (const work of submitedWork.works) {
+            const section = await this.sectionsModel.findById(work.sectionId).exec();
+            if (section) {
+                const commit = await section.addCommit(new CreateCommitDto(work.type, work.text, submitedWork.userId, work.originId));
+                if (work.polished) {
+                    await section.addCommit(new CreateCommitDto(
+                        SectionStatus.Polished,
+                        work.text,
+                        submitedWork.userId,
+                        commit._id,
+                    ));
+                }
+            }
+        }
+        return true;
     }
 
     // 参考update.operations
@@ -88,14 +131,14 @@ export class AssetsService {
                     const rawTexts = await fetchFile(fileName, filePath, this.httpService);
                     for (const rawText of rawTexts) {
                         const textHash = generateHash(rawText.text);
-                        const infoIndex = archive.files.length > 0 ? archive.files.findIndex(f => f.name === rawText.name) : -1 ;
+                        const infoIndex = archive.files.length > 0 ? archive.files.findIndex(f => f.name === rawText.name) : -1;
                         // let docModel = null;
                         if (infoIndex !== -1 && archive.files[infoIndex].hash === textHash) {
                             continue;
                         }
                         // else if (infoIndex !== -1) {
                         //     docModel = await this.filesModel.findOne(m => m.name === rawText.name).exec();
-                        // } 
+                        // }
                         // else {
                         //     docModel = await this.filesModel.createFile(new CreateFileDto(rawText.name, filePath, FileType.Section));
                         // }
@@ -121,7 +164,7 @@ export class AssetsService {
             fileListInfo.path = updateCommand.fileListMark;
             fileListInfo.save();
             const end = (new Date()).getTime();
-            console.log(end-init);
+            console.log(end - init);
         } catch (err) {
             console.log('Failed in updating\n', err);
             return Promise.reject('Failed in updating');

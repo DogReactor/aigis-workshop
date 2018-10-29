@@ -123,7 +123,7 @@ FileSchema.methods.contractSections = async function (user: ObjectId, count: num
 };
 
 FileSchema.methods.getContractedSections = async function (user: ObjectId) {
-    const sections = [];
+    const sections: Section[] = [];
     for (const hash of this.sections) {
         const section = await this.model('section').findOne({ hash }).exec() as any as Section;
         if (!section) { throw Constants.NO_SPECIFIED_SECTION; } // ????

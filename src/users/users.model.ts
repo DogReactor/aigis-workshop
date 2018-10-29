@@ -1,4 +1,3 @@
-import { UserAuthority } from '../constants'
 import { IsString, IsInt, IsEmail, ValidateNested } from 'class-validator';
 import { Type } from 'class-transformer';
 import { JsonWebToken } from '../core/jwt.service';

@@ -78,8 +78,8 @@ export interface File extends Document {
   getSections(start?: number, count?: number): Promise<Section[]>;
   getPublishedText?(): Promise<string[]>;
   mergeSections(section: Array<CreateSectionDto>): Promise<number>;
-  contractSections(count: number): Promise<number>;
-  getContractedSections(user: ObjectId): Promise<Section>;
+  contractSections(user: string, count: number): Promise<number>;
+  getContractedSections(user: string): Promise<Section[]>;
 }
 export interface FileModel extends Model<File> {
   createFile(file: CreateFileDto, force?: boolean): Promise<File | null>;

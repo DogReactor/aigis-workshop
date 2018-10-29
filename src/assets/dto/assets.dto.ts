@@ -1,17 +1,21 @@
 import { SectionStatus, FileType } from '../../constants';
 import { ObjectId } from 'bson';
-
+import * as mongoose from 'mongoose';
 export const StoreKeys = ['raw', 'translated', 'corrected', 'embellished'];
 export class CreateFileDto {
     constructor(public name: string, public assetsPath: string, public type: FileType) { }
 }
 
 export class CreateCommitDto {
-    author?: ObjectId;
     time: number;
-    type: SectionStatus;
-    text: string;
-    originCommit?: ObjectId;
+    constructor(
+        public type: SectionStatus,
+        public text: string,
+        public author?: string,
+        public originCommit?: string,
+    ) {
+        this.time = (new Date()).getTime();
+    }
 }
 
 export class CreateSectionDto {
@@ -23,5 +27,5 @@ export class CreateSectionDto {
 }
 
 export class CreateArchiveDto {
-    constructor(public dlName, public files: Array<string> = [], public path: string = ''){}
+    constructor(public dlName, public files: Array<string> = [], public path: string = '') { }
 }

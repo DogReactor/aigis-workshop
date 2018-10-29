@@ -7,16 +7,10 @@ export interface UpdateCommand {
 }
 
 export interface FileRequest {
-    name: string;
-    meta: string;
-    model: WorkModel;
+    id: string;
 }
 
 export interface SubmitWork {
-    works: Array<{ hash: string, text: string }>;
-    permission: UserAuthority;
-    name: string;
-    meta: string;
-    time: string;
-    user: User;
+    works: Array<{ sectionId: string, text: string, originId: string, type: SectionStatus, polished: boolean }>;
+    userId?: string;
 }
