@@ -1,8 +1,8 @@
 import * as mongoose from 'mongoose';
-import { CreateSectionDto,  CreateCommitDto, CreateFileDto, CreateArchiveDto } from '../dto/assets.dto';
+import { CreateSectionDto, CreateCommitDto, CreateFileDto, CreateArchiveDto } from '../dto/assets.dto';
 import { ObjectId } from 'bson';
 import { SectionStatus, Constants } from '../../constants';
-import { Section, Commit, SectionModel } from '../interface/assets.interface';
+import { Section, Commit, SectionModel, ArchiveModel, Archive } from '../interface/assets.interface';
 
 export const ArchiveSchema = new mongoose.Schema({
     dlName: String,
@@ -15,7 +15,7 @@ export const ArchiveSchema = new mongoose.Schema({
 });
 
 ArchiveSchema.statics.getArchive = async function (archiveDto: CreateArchiveDto) {
-    let doc = await this.findOne({dlName: archiveDto.dlName}).exec();
+    let doc = await this.findOne({ dlName: archiveDto.dlName }).exec() as Archive;
     if (doc) {
         return doc;
     } else {

@@ -16,18 +16,14 @@ export class TokenVerifyMiddleware implements NestMiddleware {
     resolve(...args: any[]): MiddlewareFunction {
         return async (req: Request, res: Response, next) => {
             try {
-                // Todo:测试
-                // if (!req.query.token || !(this.jwt.Verify(req.query.token))) throw Constants.NO_TOKEN;
-                // const obj = this.jwt.Verify(req.body.token) as any;
-                // if (!obj._id || !obj.password) throw Constants.TOKEN_ERROR;
-                // const user = await this.usersService.FindUser(obj._id, true);
-                // if (!user || user.password !== obj.password) throw Constants.TOKEN_ERROR;
+                const obj = this.jwt.Verify(req.query.token) as any;
+                if (!req.query.token || !obj) throw Constants.TOKEN_ERROR;
+                if (!obj._id || !obj.password) throw Constants.TOKEN_ERROR;
+                const user = await this.usersService.FindUser(obj._id, true);
+                if (!user || user.password !== obj.password) throw Constants.TOKEN_ERROR;
 
-                // req.body.token = obj;
-                // req.body.user = user;
-                req.body.user = {
-                    _id: 'gbf is the best game',
-                };
+                req.body.token = obj;
+                req.body.user = user;
                 next();
             } catch (err) {
                 res.status(400).send(new BadRequestMessage(err));

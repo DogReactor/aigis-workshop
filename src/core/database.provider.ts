@@ -5,6 +5,6 @@ export const databaseProviders = [
     {
         provide: Constants.DbConnectionToken,
         useFactory: async (): Promise<typeof mongoose> =>
-            await mongoose.connect('mongodb://localhost:27017/test', { useNewUrlParser: true }), // TODO: 测试
+            await mongoose.connect('mongodb://localhost:27017/test', { useNewUrlParser: true }),
     },
 ];

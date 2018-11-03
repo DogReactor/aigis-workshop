@@ -26,9 +26,9 @@ export class AssetsController {
     }
     // 获取文件列表
     @Get('files')
-    async getFiles(@Query() query) {
+    async getFiles(@Query() query, @Body() body) {
         try {
-            return await this.assetsService.getFiles(query.reg, query.skip, query.limit);
+            return await this.assetsService.getFiles(query.reg, query.skip, query.limit, body.user._id);
         } catch (ex) {
             throw new HttpException(ex, 400);
         }

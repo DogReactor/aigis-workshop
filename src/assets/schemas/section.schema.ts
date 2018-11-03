@@ -100,16 +100,20 @@ SectionSchema.methods.publishCommit = async function (this: Section, id: ObjectI
 
 SectionSchema.methods.addCommit = async function (this: Section, commit: CreateCommitDto) {
 
-    let origin = null;
-    if (commit.originCommit) {
+    let origin: Commit = null;
+    if (commit.originCommit && commit.author) {
         // 检查commit的origin是否存在
         origin = this.commits.id(commit.originCommit);
         if (!origin) throw Constants.NO_SPECIFIED_COMMIT;
         // 检查类型是否正确(初翻->原文 校对->初翻 润色->校对)
         if (commit.type - origin.type > 1) throw Constants.COMMIT_TYPE_ERROR;
         // 检查是否重复提交(每个人对每个commit只能有一个提交)
-        const r = origin.children.find(v => v === commit.author);
+        const r = origin.children.find(v => v.toHexString() === commit.author);
         if (r) throw Constants.MULIT_COMMIT;
+        // 如果是translate，验证是否承包过
+        if (commit.type === SectionStatus.Translated && !this.verifyContractor(mongoose.Types.ObjectId(commit.author))) {
+
+        }
     } else {
         if (commit.type !== SectionStatus.Raw || this.rawCommit) throw Constants.NO_SPECIFIED_COMMIT;
     }
@@ -161,7 +165,7 @@ SectionSchema.methods.contract = async function (this: Section, id: ObjectId) {
 
 SectionSchema.methods.verifyContractor = function (this: Section, id: ObjectId) {
     if (!this.contractInfo) return false;
-    return this.contractInfo.contractor === id;
+    return this.contractInfo.contractor.toHexString() === id.toHexString();
 };
 
 SectionSchema.statics.hasSection = async function (this: SectionModel, hash: string) {
