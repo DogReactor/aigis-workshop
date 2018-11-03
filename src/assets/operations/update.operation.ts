@@ -1,5 +1,5 @@
 import * as path from 'path';
-import * as fs from 'fs-extra';
+import { FileType } from '../../constants';
 import { HttpService } from '@nestjs/common';
 import { map } from 'rxjs/operators';
 import { parseAL, AL } from 'aigis-fuel';
@@ -32,7 +32,8 @@ export async function getFileList(fileListMark, httpService: HttpService): Promi
     return Promise.resolve(fileList);
 }
 
-export async function fetchFile(fileName: string, refPath: string, httpService: HttpService): Promise<Array<{ name: string, text: string }>> {
+export async function fetchFile(fileName: string, refPath: string, httpService: HttpService):
+                Promise<Array<{ name: string, text: string, fileType: FileType }>> {
     try {
         const fileBuffer = await downloadAsset(refPath, httpService);
         const al = parseAL(fileBuffer);
@@ -109,8 +110,8 @@ export function splitToSections(rawText: { name: string, text: string }, remarks
     return sections;
 }
 
-function takeText(fileName: string, ALData: AL): Array<{ name: string, text: string }> {
-    let rawTexts: Array<{ name: string, text: string }> = [];
+function takeText(fileName: string, ALData: AL): Array<{ name: string, text: string, fileType: FileType }> {
+    let rawTexts: Array<{ name: string, text: string, fileType: FileType }> = [];
     function filterFutile() {
         if (/^p.ev03/.test(fileName)) {
             rawTexts = rawTexts.filter(e => e.name.endsWith('_evtxt.atb'));
@@ -123,7 +124,10 @@ function takeText(fileName: string, ALData: AL): Array<{ name: string, text: str
                 if (path.extname(subAAR.Name) !== '.txt') {
                     rawTexts = rawTexts.concat(takeText(path.join(path.basename(fileName, '.aar'), subAAR.Name), subAAR.Content));
                 } else {
-                    rawTexts.push({ name: subAAR.Name, text: subAAR.Content.Content });
+                    rawTexts.push({
+                        name: path.join(path.basename(fileName, '.aar'), subAAR.Name),
+                        text: subAAR.Content.Content,
+                         fileType: FileType.TXT });
                 }
             }
             filterFutile();
@@ -138,7 +142,7 @@ function takeText(fileName: string, ALData: AL): Array<{ name: string, text: str
             }
             content = content.trim();
             if (content) {
-                rawTexts.push({ name: fileName, text: content });
+                rawTexts.push({ name: fileName, text: content, fileType: FileType.Section });
             }
         default:
             break;
