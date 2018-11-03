@@ -29,6 +29,7 @@
     "class-transformer": "^0.1.10",
     "class-validator": "^0.9.1",
     "compression": "^1.7.3",
+    "cors": "^2.8.4",
     "fs-extra": "^7.0.0",
     "jsonwebtoken": "^8.3.0",
     "mongoose": "^5.3.4",

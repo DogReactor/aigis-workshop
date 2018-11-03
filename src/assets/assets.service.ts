@@ -56,23 +56,47 @@ export class AssetsService {
         const file = await this.filesModel.findOne({ _id: id }).exec();
         return file;
     }
-    async getFiles(reg?: string, skip?: number, limit?: number) {
+    async getFiles(reg?: string, skip?: number, limit?: number, user?: string) {
         const query: any = {};
         if (reg) query.name = {
             $regex: reg,
         };
-        let filesPointer = this.filesModel.find(query, { sections: 0 });
+        let filesPointer = this.filesModel.aggregate(
+            [
+                { $match: query },
+                {
+                    $project: {
+                        name: 1,
+                        assetsPath: 1,
+                        type: 1,
+                        lastUpdated: 1,
+                        translated: 1,
+                        corrected: 1,
+                        polished: 1,
+                        contractors: 1,
+                        sectionCount: {
+                            $size: '$sections',
+                        },
+                    },
+                },
+            ],
+        );
         if (skip) filesPointer = filesPointer.skip(skip);
         if (limit) filesPointer = filesPointer.limit(limit);
-        return await filesPointer.exec();
+        const result = await filesPointer.exec();
+        return result;
     }
 
     async contract(fileid: string, proposal: string, count: number) {
-        const file = await this.filesModel.findById(fileid).exec();
+        let file = await this.filesModel.findById(fileid).exec();
         if (!file) throw Constants.FILE_NOT_FOUND;
         else {
-            await file.contractSections(proposal, count);
-            return true;
+            file = await file.contractSections(proposal, count);
+            const sectionCount = file.sections.length;
+            file.sections = undefined;
+            const fileObj = file.toObject();
+            fileObj.sectionCount = sectionCount;
+            return fileObj;
         }
     }
 

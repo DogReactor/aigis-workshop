@@ -15,7 +15,7 @@ export interface Archive extends Document {
 }
 
 export interface ArchiveModel extends Model<Archive> {
-  getArchive(CreateArchiveDto);
+  getArchive(CreateArchiveDto): Promise<Archive>;
 }
 
 // Commit是Section的SubDocument
@@ -70,7 +70,8 @@ export interface File extends Document {
   corrected: number;
   polished: number;
   sections: string[];
-  constructors: {
+  sectionCount?: number;
+  contractors: {
     user: ObjectId,
     count: number,
   }[];
@@ -78,7 +79,7 @@ export interface File extends Document {
   getSections(start?: number, count?: number): Promise<Section[]>;
   getPublishedText?(): Promise<string[]>;
   mergeSections(section: Array<CreateSectionDto>): Promise<number>;
-  contractSections(user: string, count: number): Promise<number>;
+  contractSections(user: string, count: number): Promise<File>;
   getContractedSections(user: string): Promise<Section[]>;
 }
 export interface FileModel extends Model<File> {

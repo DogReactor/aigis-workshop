@@ -31,7 +31,12 @@ export class Constants {
     public static get MAILWORD_EXISTS() { return '邮箱已存在'; }
 
     public static get NO_TOKEN() { return '没有Token'; }
-    public static get TOKEN_ERROR() { return 'Token错误'; }
+    public static get TOKEN_ERROR() {
+        return {
+            message: 'Token错误',
+            code: 10,
+        };
+    }
 
     public static get NO_SPECIFIED_COMMIT() { return '在指定的Section中找不到指定的Commit'; }
     public static get NO_SPECIFIED_SECTION() { return '没有指定的Section'; }

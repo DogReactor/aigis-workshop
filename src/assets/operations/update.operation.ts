@@ -123,7 +123,6 @@ function takeText(fileName: string, ALData: AL): Array<{ name: string, text: str
                 if (path.extname(subAAR.Name) !== '.txt') {
                     rawTexts = rawTexts.concat(takeText(path.join(path.basename(fileName, '.aar'), subAAR.Name), subAAR.Content));
                 } else {
-
                     rawTexts.push({ name: subAAR.Name, text: subAAR.Content.Content });
                 }
             }
