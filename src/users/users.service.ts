@@ -17,9 +17,9 @@ export class UsersService {
     }
     public async FindUser(_id: string, withPassword: boolean = false) {
         if (withPassword) {
-            return await this.userModel.findById(_id, { _id: false, __v: false }).exec();
+            return await this.userModel.findById(_id, { __v: false }).exec();
         } else {
-            return await this.userModel.findById(_id, { password: false, _id: false, __v: false }).exec();
+            return await this.userModel.findById(_id, { password: false, __v: false }).exec();
         }
 
     }

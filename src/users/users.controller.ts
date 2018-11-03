@@ -14,7 +14,7 @@ export class UsersController {
 
     }
     // 不需要登陆状态
-    @Post('/users/reg')
+    @Post('/users')
     @UsePipes(new ValidationPipe({ transform: false }))
     async postReg(@Body() reg: RegDto) {
         try {
@@ -25,7 +25,7 @@ export class UsersController {
         }
     }
 
-    @Post('/users/login')
+    @Post('/users/token')
     async postLogin(@Body() login: LoginDto) {
         // 返回token
         try {
@@ -42,7 +42,7 @@ export class UsersController {
     }
 
     // 需要登陆状态，通过middleware
-    @Put('/user/modify')
+    @Put('/user')
     @UsePipes(new ValidationPipe({ transform: false, skipMissingProperties: true }))
     async postModify(@Body() body: ModifyRequestDto) {
         const _id = body.token._id;
@@ -55,8 +55,9 @@ export class UsersController {
     }
 
     // 客户端在收到token之后应该立刻访问此接口
-    @Post('/user/info')
+    @Get('/user')
     async getInfo(@Body() body: { token: JsonWebToken, user: any }) {
-        return new HttpSuccessMessage(body.user);
+        body.user.password = undefined;
+        return body.user;
     }
 }

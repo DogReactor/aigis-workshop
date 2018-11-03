@@ -42,7 +42,7 @@ export const FileSchema = new mongoose.Schema({
 
 FileSchema.index({ name: 1 });
 
-FileSchema.statics.createFile = async function (file: CreateFileDto, force?: boolean) {
+FileSchema.statics.createFile = async function (this: FileModel, file: CreateFileDto, force?: boolean) {
     let doc = await this.findOne({ name: file.name }).exec();
     if (doc === null) doc = new this(file);
     doc.lastUpdated = (new Date()).getTime();
@@ -51,10 +51,10 @@ FileSchema.statics.createFile = async function (file: CreateFileDto, force?: boo
     return doc;
 };
 
-FileSchema.methods.getPublishedText = async function () {
+FileSchema.methods.getPublishedText = async function (this: File) {
     const texts = [];
     for (const hash of this.sections) {
-        const doc = await this.Model('section').findOne({ hash }).exec() as Section;
+        const doc = await this.model('section').findOne({ hash }).exec() as any as Section;
         if (doc.publishedCommit) {
             const commit = doc.commits.id(doc.publishedCommit);
             if (commit) texts.push(commit.text);
@@ -63,7 +63,7 @@ FileSchema.methods.getPublishedText = async function () {
     return texts;
 };
 
-FileSchema.methods.mergeSections = async function (sections: Array<CreateSectionDto>) {
+FileSchema.methods.mergeSections = async function (this: File, sections: Array<CreateSectionDto>) {
     this.lastUpdated = (new Date()).getTime();
     let count = 0;
     let newFile = false;
@@ -98,7 +98,7 @@ FileSchema.methods.mergeSections = async function (sections: Array<CreateSection
     return count;
 };
 
-FileSchema.methods.contractSections = async function (user: ObjectId, count: number) {
+FileSchema.methods.contractSections = async function (this: File, user: ObjectId, count: number) {
     let result = 0;
     for (const hash of this.sections) {
         if (count <= 0) break;
@@ -109,20 +109,23 @@ FileSchema.methods.contractSections = async function (user: ObjectId, count: num
             count--; result++;
         }
     }
-    let contractor = this.constructors.find(v => user === v.user);
+    let contractor = this.contractors.find(v => {
+        return user.toHexString() === v.user.toHexString();
+    });
     if (!contractor) {
         contractor = {
             user,
-            count: 0,
+            count: result,
         };
-        this.constructors.push(contractor);
+        this.contractors.push(contractor);
+    } else {
+        contractor.count += result;
     }
-    contractor.count += result;
     await this.save();
-    return result;
+    return this;
 };
 
-FileSchema.methods.getContractedSections = async function (user: ObjectId) {
+FileSchema.methods.getContractedSections = async function (this: File, user: ObjectId) {
     const sections: Section[] = [];
     for (const hash of this.sections) {
         const section = await this.model('section').findOne({ hash }).exec() as any as Section;
@@ -134,7 +137,7 @@ FileSchema.methods.getContractedSections = async function (user: ObjectId) {
     // TODO: 只返回没翻译过的
 };
 
-FileSchema.methods.getSections = async function (start?: number, count?: number) {
+FileSchema.methods.getSections = async function (this: File, start?: number, count?: number) {
     const sectionDocs = [];
     const end = start && count ? start + count : undefined;
     const sections = start ? this.sections.splice(start, end) : this.sections;
