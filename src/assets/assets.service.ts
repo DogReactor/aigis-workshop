@@ -1,15 +1,11 @@
 import { Injectable, HttpService, Inject } from '@nestjs/common';
-import { Model } from 'mongoose';
 import * as fs from 'fs-extra';
-import * as path from 'path';
 import * as crypto from 'crypto';
-import { Constants, WorkModel, ContractedMethods, FileType, SectionStatus } from '../constants';
-import { FileRequest, SubmitWork } from './interface/service.interface';
+import { Constants, FileType, SectionStatus } from '../constants';
+import { SubmitWork, UpdateCommand } from './interface/service.interface';
 import { getFileList, fetchFile, splitToSections } from './operations/update.operation';
-import { CmUpdateDto } from './dto/communication.dto';
-import { CreateFileDto, StoreKeys, CreateCommitDto, CreateArchiveDto } from './dto/assets.dto';
+import { CreateFileDto, CreateCommitDto, CreateArchiveDto } from './dto/assets.dto';
 import { ArchiveModel, FileModel, SectionModel } from './interface/assets.interface';
-import { ObjectId } from 'bson';
 
 const requestFiles = [
     'AbilityList.atb',
@@ -134,7 +130,7 @@ export class AssetsService {
     }
 
     // 参考update.operations
-    async updateWeekly(updateCommand: CmUpdateDto) {
+    async updateWeekly(updateCommand: UpdateCommand) {
         this.fileListVersion = this.fileListVersion || (await this.ArchivesModel.findOne({ dlName: 'file-list' }).exec()).path;
         if (this.fileListVersion === updateCommand.fileListMark) {
             return Promise.reject('files all are unchanged');

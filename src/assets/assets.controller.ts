@@ -1,5 +1,5 @@
 import { Controller, Get, Post, Body, Res, Query, Param, HttpException } from '@nestjs/common';
-import { SubmitWork } from './interface/service.interface';
+import { SubmitWork, UpdateCommand } from './interface/service.interface';
 import { AssetsService } from './assets.service';
 import { Constants } from '../constants';
 import { User } from 'users/users.interface';
@@ -7,6 +7,11 @@ import { User } from 'users/users.interface';
 export class AssetsController {
     constructor(
         private readonly assetsService: AssetsService) { }
+
+    @Post('update') // 更新数据库文件
+    async updateFiles(@Body() updateCommand: UpdateCommand): Promise<string> {
+        return await this.assetsService.updateWeekly(updateCommand);
+    }
 
     // 提交工作
     @Post('sections')

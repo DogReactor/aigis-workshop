@@ -94,7 +94,7 @@ export function splitToSections(rawText: { name: string, text: string }, remarks
         const desc = lines.map(l => '');
         remarks.CardsInfo.Flavor.forEach(e => {
             for (let i = e.StartIndex; i < e.EndIndex; ++i) {
-                desc[i] = `Flavor talk ${(i - e.StartIndex + 1)} of ${e.Name}`;
+                desc[i] = `*${e.Name}*`;
             }
         });
         lines.forEach((l, i) => {
