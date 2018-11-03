@@ -138,7 +138,7 @@ export class AssetsService {
                         // else {
                         //     docModel = await this.filesModel.createFile(new CreateFileDto(rawText.name, filePath, FileType.Section));
                         // }
-                        const docModel = await this.filesModel.createFile(new CreateFileDto(rawText.name, filePath, FileType.Section));
+                        const docModel = await this.filesModel.createFile(new CreateFileDto(rawText.name, filePath, rawText.fileType));
                         const sections = splitToSections(rawText, updateCommand.remarks);
                         await docModel.mergeSections(sections);
                         await archive.updateFileInfo(rawText.name, textHash, docModel._id, infoIndex);
