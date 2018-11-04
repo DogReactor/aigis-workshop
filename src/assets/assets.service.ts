@@ -150,7 +150,7 @@ export class AssetsService {
 
     // 参考update.operations
     async updateWeekly(updateCommand: UpdateCommand) {
-        this.fileListVersion = this.fileListVersion || (await this.ArchivesModel.findOne({ dlName: 'file-list' }).exec()).path;
+        this.fileListVersion = this.fileListVersion || (await this.ArchivesModel.getArchive(new CreateArchiveDto('file-list'))).path;
         if (this.fileListVersion === updateCommand.fileListMark) {
             return Promise.reject('files all are unchanged');
         }
@@ -199,7 +199,6 @@ export class AssetsService {
             });
             await Promise.all(updatePromises);
             const fileListInfo = await this.ArchivesModel.findOne({ dlName: 'file-list' }).exec();
-            this.fileListVersion = updateCommand.fileListMark;
             fileListInfo.path = updateCommand.fileListMark;
             fileListInfo.save();
             const end = (new Date()).getTime();
