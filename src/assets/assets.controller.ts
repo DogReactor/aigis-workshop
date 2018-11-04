@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Res, Query, Param, HttpException } from '@nestjs/common';
+import { Controller, Get, Post, Body, Res, Query, Param, HttpException, ParseIntPipe } from '@nestjs/common';
 import { SubmitWork, UpdateCommand } from './interface/service.interface';
 import { AssetsService } from './assets.service';
 import { Constants } from '../constants';
@@ -24,11 +24,34 @@ export class AssetsController {
             throw new HttpException(ex, 400);
         }
     }
+    @Get('sections')
+    async getSections(@Body('user') user: User, @Query('skip', new ParseIntPipe()) skip: number, @Query('limit', new ParseIntPipe()) limit: number) {
+        try {
+            return await this.assetsService.getSectionsByUser(user._id, skip, limit);
+        } catch (ex) {
+            throw new HttpException(ex, 400);
+        }
+    }
+    @Get('sections/count')
+    async getSectionsCount(@Body('user') user: User) {
+        try {
+            return await this.assetsService.getSectionsCountByUser(user._id);
+        } catch (ex) {
+            throw new HttpException(ex, 400);
+        }
+    }
+
     // 获取文件列表
     @Get('files')
-    async getFiles(@Query() query, @Body() body) {
+    async getFiles(
+        @Query('reg') reg: string,
+        @Query('skip', new ParseIntPipe()) skip: number,
+        @Query('limit', new ParseIntPipe()) limit: number,
+        @Query('sort') sort: string,
+        @Body() body,
+    ) {
         try {
-            return await this.assetsService.getFiles(query.reg, query.skip, query.limit, body.user._id);
+            return await this.assetsService.getFiles(reg, skip, limit, sort);
         } catch (ex) {
             throw new HttpException(ex, 400);
         }
@@ -45,7 +68,7 @@ export class AssetsController {
 
     // 获取Section
     @Get('file/:id/sections')
-    async getSections(@Body() body, @Param('id') id, @Query() query) {
+    async getFileSections(@Body() body, @Param('id') id, @Query() query) {
         try {
             if (query.contracted) {
                 return await this.assetsService.getContractedSection(id, body.user._id);

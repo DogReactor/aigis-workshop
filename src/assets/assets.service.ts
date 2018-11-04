@@ -52,7 +52,7 @@ export class AssetsService {
         const file = await this.filesModel.findOne({ _id: id }).exec();
         return file;
     }
-    async getFiles(reg?: string, skip?: number, limit?: number, user?: string) {
+    async getFiles(reg?: string, skip?: number, limit?: number, sort?: string) {
         const query: any = {};
         if (reg) query.name = {
             $regex: reg,
@@ -77,6 +77,7 @@ export class AssetsService {
                 },
             ],
         );
+        if (sort === 'update') filesPointer.sort({ lastUpdated: -1 });
         if (skip) filesPointer = filesPointer.skip(skip);
         if (limit) filesPointer = filesPointer.limit(limit);
         const result = await filesPointer.exec();
@@ -102,6 +103,24 @@ export class AssetsService {
         else {
             return await file.getContractedSections(user);
         }
+    }
+    async getSectionsByUser(userId, skip?: number, limit?: number) {
+        const query = this.sectionsModel.find({ 'contractInfo.contractor': userId });
+        if (skip) query.skip(skip);
+        if (limit) query.limit(limit);
+        return await query.exec();
+    }
+    async getSectionsCountByUser(userId) {
+        const query = this.sectionsModel.aggregate([
+            { $match: { 'contractInfo.contractor': userId } },
+            {
+                $group: {
+                    _id: '$translated',
+                    count: { $sum: 1 },
+                },
+            },
+        ]);
+        return await query.exec();
     }
     async getSections(fileid: string, skip?: number, limit?: number) {
         const file = await this.filesModel.findById(fileid).exec();

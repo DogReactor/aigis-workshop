@@ -69,7 +69,7 @@ export const SectionSchema = new mongoose.Schema({
     },
 });
 
-SectionSchema.index({ hash: 1 });
+SectionSchema.index({ hash: 1 }, { unique: true });
 
 SectionSchema.pre('save', function (next) {
     if (

@@ -40,7 +40,7 @@ export const FileSchema = new mongoose.Schema({
     }],
 });
 
-FileSchema.index({ name: 1 });
+FileSchema.index({ name: 1 }, { unique: true });
 
 FileSchema.statics.createFile = async function (this: FileModel, file: CreateFileDto, force?: boolean) {
     let doc = await this.findOne({ name: file.name }).exec();
