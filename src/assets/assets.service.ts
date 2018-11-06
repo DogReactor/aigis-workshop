@@ -116,7 +116,7 @@ export class AssetsService {
             { $match: { 'contractInfo.contractor': userId } },
             {
                 $group: {
-                    _id: '$translated',
+                    _id: '$status',
                     count: { $sum: 1 },
                 },
             },

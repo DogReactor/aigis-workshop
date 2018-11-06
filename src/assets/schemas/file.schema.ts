@@ -143,10 +143,10 @@ FileSchema.methods.getContractedSections = async function (this: File, user: Obj
     // TODO: 只返回没翻译过的
 };
 
-FileSchema.methods.getSections = async function (this: File, start?: number, count?: number) {
+FileSchema.methods.getSections = async function (this: File, start: number, count: number) {
     const sectionDocs = [];
-    const end = start && count ? start + count : undefined;
-    const sections = start ? this.sections.splice(start, end) : this.sections;
+    const end = count !== 0 ? start + count : undefined;
+    const sections = start && end ? this.sections.splice(start, end) : this.sections;
     for (const hash of sections) {
         const section = await this.model('section').findOne({ hash }).exec() as any as Section;
         if (!section) { throw Constants.NO_SPECIFIED_SECTION; } // ???

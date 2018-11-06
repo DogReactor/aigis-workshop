@@ -79,17 +79,22 @@ export class AssetsController {
 
     // 获取Section
     @Get('file/:id/sections')
-    async getFileSections(@Body() body, @Param('id') id, @Query() query) {
+    async getFileSections(
+        @Body() body,
+        @Param('id') id,
+        @Query('skip', new ParseIntPipe()) skip,
+        @Query('limit', new ParseIntPipe()) limit,
+        @Query('contracted', new ParseIntPipe()) contracted,
+    ) {
         try {
-            if (query.contracted) {
+            if (contracted === 1) {
                 return await this.assetsService.getContractedSection(id, body.user._id);
             } else {
-                return await this.assetsService.getSections(id, query.skip, query.limit);
+                return await this.assetsService.getSections(id, skip, limit);
             }
         } catch (ex) {
             throw new HttpException(ex, 400);
         }
-
     }
     @Post('file/:id/contract') // 圈文运动
     async contract(@Body() body, @Param('id') id) {
