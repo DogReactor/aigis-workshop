@@ -38,12 +38,28 @@ export class Constants {
         };
     }
 
-    public static get NO_SPECIFIED_COMMIT() { return '在指定的Section中找不到指定的Commit'; }
+    public static get NO_SPECIFIED_COMMIT() {
+        return {
+            message: '在指定的Section中找不到指定的Commit',
+            code: 101,
+        };
+    }
     public static get NO_SPECIFIED_SECTION() { return '没有指定的Section'; }
-    public static get MULIT_COMMIT() { return '重复提交'; }
-    public static get COMMIT_TYPE_ERROR() { return '提交类型错误'; }
+    public static get MULIT_COMMIT() {
+        return {
+            message: '重复提交',
+            code: 102,
+        };
+    }
+    public static get COMMIT_TYPE_ERROR() {
+        return {
+            message: '提交类型错误',
+            code: 103,
+        };
+    }
     public static get ARGUMENTS_ERROR() { return '参数错误'; }
     public static get FILE_NOT_FOUND() { return '文件不存在'; }
+    public static get FAILED_UPDATE() { return '更新失败'; }
 }
 
 export enum WorkModel { Reading, Translating, Correcting, Embellishing, Publishing }
