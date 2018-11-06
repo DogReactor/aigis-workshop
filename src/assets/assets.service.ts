@@ -7,6 +7,7 @@ import { getFileList, fetchFile, splitToSections } from './operations/update.ope
 import { CreateFileDto, CreateCommitDto, CreateArchiveDto } from './dto/assets.dto';
 import { ArchiveModel, FileModel, SectionModel } from './interface/assets.interface';
 
+let updateLock = false;
 const requestFiles = [
     'AbilityList.atb',
     'AbilityText.atb',
@@ -52,7 +53,7 @@ export class AssetsService {
         const file = await this.filesModel.findOne({ _id: id }).exec();
         return file;
     }
-    async getFiles(reg?: string, skip?: number, limit?: number, user?: string) {
+    async getFiles(reg?: string, skip?: number, limit?: number, sort?: string) {
         const query: any = {};
         if (reg) query.name = {
             $regex: reg,
@@ -77,6 +78,7 @@ export class AssetsService {
                 },
             ],
         );
+        if (sort === 'update') filesPointer.sort({ lastUpdated: -1 });
         if (skip) filesPointer = filesPointer.skip(skip);
         if (limit) filesPointer = filesPointer.limit(limit);
         const result = await filesPointer.exec();
@@ -103,6 +105,24 @@ export class AssetsService {
             return await file.getContractedSections(user);
         }
     }
+    async getSectionsByUser(userId, skip: number, limit: number, filter: number) {
+        const query = this.sectionsModel.find({ 'contractInfo.contractor': userId, 'status': { $lte: filter } });
+        if (skip !== 0) query.skip(skip);
+        if (limit !== 0) query.limit(limit);
+        return await query.exec();
+    }
+    async getSectionsCountByUser(userId) {
+        const query = this.sectionsModel.aggregate([
+            { $match: { 'contractInfo.contractor': userId } },
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 },
+                },
+            },
+        ]);
+        return await query.exec();
+    }
     async getSections(fileid: string, skip?: number, limit?: number) {
         const file = await this.filesModel.findById(fileid).exec();
         if (!file) throw Constants.FILE_NOT_FOUND;
@@ -112,82 +132,121 @@ export class AssetsService {
     }
 
     async submitWork(submitedWork: SubmitWork) {
+        const errorList: {
+            section: string,
+            error: {
+                message: string,
+                code: number,
+            },
+        }[] = [];
         for (const work of submitedWork.works) {
             const section = await this.sectionsModel.findById(work.sectionId).exec();
             if (section) {
-                const commit = await section.addCommit(new CreateCommitDto(work.type, work.text, submitedWork.userId, work.originId));
-                if (work.polished) {
-                    await section.addCommit(new CreateCommitDto(
-                        SectionStatus.Polished,
-                        work.text,
-                        submitedWork.userId,
-                        commit._id,
-                    ));
+                try {
+                    const commit = await section.addCommit(new CreateCommitDto(work.type, work.text, submitedWork.userId, work.originId));
+                    if (work.polished) {
+                        await section.addCommit(new CreateCommitDto(
+                            SectionStatus.Polished,
+                            work.text,
+                            submitedWork.userId,
+                            commit._id,
+                        ));
+                    }
+                } catch (err) {
+                    errorList.push({
+                        section: work.sectionId,
+                        error: err,
+                    });
                 }
             }
         }
-        return true;
+        if (errorList.length > 0) {
+            return {
+                success: false,
+                detail: errorList,
+            };
+        } else {
+            return {
+                success: true,
+            };
+        }
     }
 
     // 参考update.operations
     async updateWeekly(updateCommand: UpdateCommand) {
-        this.fileListVersion = this.fileListVersion || (await this.ArchivesModel.findOne({ dlName: 'file-list' }).exec()).path;
+        if (updateLock) return;
+        this.fileListVersion = this.fileListVersion || (await this.ArchivesModel.getArchive(new CreateArchiveDto('file-list'))).path;
         if (this.fileListVersion === updateCommand.fileListMark) {
             return Promise.reject('files all are unchanged');
         }
+        updateLock = true;
         const init = (new Date()).getTime();
         try {
-            const fileList: Array<[string, string]> = await getFileList(updateCommand.fileListMark, this.httpService);
-            const updatePromises = fileList.map(async pair => {
-                const [fileName, filePath] = pair;
-                if (!requestFiles.find((v) => fileName.includes(v))) {
-                    return Promise.resolve('not be demanded');
-                }
-                const archive = await this.ArchivesModel.getArchive(new CreateArchiveDto(fileName));
-                if (archive.path === filePath) {
-                    return Promise.resolve('not need updating');
-                }
-                try {
-                    const rawTexts = await fetchFile(fileName, filePath, this.httpService);
-                    for (const rawText of rawTexts) {
-                        const textHash = generateHash(rawText.text);
-                        const infoIndex = archive.files.length > 0 ? archive.files.findIndex(f => f.name === rawText.name) : -1;
-                        // let docModel = null;
-                        if (infoIndex !== -1 && archive.files[infoIndex].hash === textHash) {
-                            continue;
-                        }
-                        // else if (infoIndex !== -1) {
-                        //     docModel = await this.filesModel.findOne(m => m.name === rawText.name).exec();
-                        // }
-                        // else {
-                        //     docModel = await this.filesModel.createFile(new CreateFileDto(rawText.name, filePath, FileType.Section));
-                        // }
-                        const docModel = await this.filesModel.createFile(new CreateFileDto(rawText.name, filePath, rawText.fileType));
-                        const sections = splitToSections(rawText, updateCommand.remarks);
-                        await docModel.mergeSections(sections);
-                        await archive.updateFileInfo(rawText.name, textHash, docModel._id, infoIndex);
+            const fileList = await getFileList(updateCommand.fileListMark, this.httpService);
+            let count = 0;
+            const updatePromises = [];
+            for (const fileName of Object.keys(fileList)) {
+                const _promise = async () => {
+                    const filePath = fileList[fileName];
+                    const c = count;
+                    count++;
+                    if (!requestFiles.find((v) => fileName.includes(v))) {
+                        return Promise.resolve('not be demanded');
                     }
-                    archive.path = filePath;
-                    archive.save();
-                    return Promise.resolve('ok');
-                }
-                catch (err) {
-                    fs.appendFile('update.err',
-                        `Failed in updating ${fileName}, path ${filePath},  ${(new Date()).toDateString()}\r\n`,
-                        { flag: 'a+' });
-                    return Promise.reject(err);
-                }
-            });
-            await Promise.all(updatePromises);
+                    const archive = await this.ArchivesModel.getArchive(new CreateArchiveDto(fileName));
+                    if (archive.path === filePath) {
+                        return Promise.resolve('not need updating');
+                    }
+                    try {
+                        const rawTexts = await fetchFile(fileName, filePath, this.httpService);
+                        let cAchive = 0;
+                        for (const rawText of rawTexts) {
+                            const cA = cAchive;
+                            cAchive++;
+                            const textHash = generateHash(rawText.text);
+                            const infoIndex = archive.files.length > 0 ? archive.files.findIndex(f => f.name === rawText.name) : -1;
+                            // let docModel = null;
+                            if (infoIndex !== -1 && archive.files[infoIndex].hash === textHash) {
+                                continue;
+                            }
+                            // else if (infoIndex !== -1) {
+                            //     docModel = await this.filesModel.findOne(m => m.name === rawText.name).exec();
+                            // }
+                            // else {
+                            //     docModel = await this.filesModel.createFile(new CreateFileDto(rawText.name, filePath, FileType.Section));
+                            // }
+                            // console.log(c, cA, rawText.name);
+
+                            const sections = splitToSections(rawText, updateCommand.remarks);
+                            if (sections.length === 0) continue;
+                            const docModel = await this.filesModel.createFile(new CreateFileDto(rawText.name, filePath, rawText.fileType));
+                            await docModel.mergeSections(sections);
+                            await archive.updateFileInfo(rawText.name, textHash, docModel._id, infoIndex);
+                        }
+                        archive.path = filePath;
+                        await archive.save();
+                        return Promise.resolve('ok');
+                    }
+                    catch (err) {
+                        fs.appendFile('update.err',
+                            `Failed in updating ${fileName}, path ${filePath},  ${(new Date()).toDateString()}\r\n`,
+                            { flag: 'a+' });
+                        return Promise.reject(err);
+                    }
+                };
+                updatePromises.push(_promise);
+                await _promise();
+            }
+            // await Promise.all(updatePromises);
             const fileListInfo = await this.ArchivesModel.findOne({ dlName: 'file-list' }).exec();
-            this.fileListVersion = updateCommand.fileListMark;
             fileListInfo.path = updateCommand.fileListMark;
             fileListInfo.save();
             const end = (new Date()).getTime();
+            updateLock = false;
             console.log(end - init);
         } catch (err) {
             console.log('Failed in updating\n', err);
-            return Promise.reject('Failed in updating');
+            throw Constants.FAILED_UPDATE;
         }
         return 'ok';
     }

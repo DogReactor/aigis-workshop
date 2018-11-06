@@ -35,9 +35,7 @@ export interface Section extends Document {
   parent: ObjectId[];
   lastPolishCommit: ObjectId | null;
   publishedCommit: ObjectId | null;
-  translated: boolean;
-  corrected: boolean;
-  polished: boolean;
+  status: SectionStatus;
   modified: boolean;
   lastPublish: number | null;
   lastUpdated: number | null;
