@@ -75,7 +75,7 @@ export function splitToSections(rawText: { name: string, text: string }, remarks
             sections.push(new CreateSectionDto(lines[i], `*${lines[i + 1]}*`));
         }
     }
-    else if (/^Harlem[a-zA-Z]?Text/.test(rawText.name)) {
+    else if (/^Harlem[a-zA-Z]*Text/.test(rawText.name)) {
         const segs = rawText.text.split('\r\n\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
         const descMap = new Map();
         segs.forEach(seg => {
@@ -121,11 +121,12 @@ function takeText(fileName: string, ALData: AL): Array<{ name: string, text: str
     switch (ALData.Head) {
         case 'ALAR':
             for (const subAAR of ALData.Files) {
+                const nextFileName = path.join(fileName.replace('.aar', ''), subAAR.Name);
                 if (path.extname(subAAR.Name) !== '.txt') {
-                    rawTexts = rawTexts.concat(takeText(path.join(path.basename(fileName, '.aar'), subAAR.Name), subAAR.Content));
+                    rawTexts = rawTexts.concat(takeText(nextFileName, subAAR.Content));
                 } else {
                     rawTexts.push({
-                        name: path.join(path.basename(fileName, '.aar'), subAAR.Name),
+                        name: nextFileName,
                         text: subAAR.Content.Content,
                         fileType: FileType.TXT,
                     });
