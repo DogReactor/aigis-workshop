@@ -27,8 +27,18 @@ export class Constants {
     public static get PASSWORD_USERNAME_ERROR() { return '用户名或密码错误'; }
     public static get PLEASE_INPUT_OLDPASSWORD() { return '请输入旧密码'; }
 
-    public static get USERNAME_EXISTS() { return '用户名已存在'; }
-    public static get MAILWORD_EXISTS() { return '邮箱已存在'; }
+    public static get USERNAME_EXISTS() {
+        return {
+            message: '用户名已存在',
+            code: 201,
+        };
+    }
+    public static get MAILWORD_EXISTS() {
+        return {
+            message: '邮箱已存在',
+            code: 202,
+        };
+    }
 
     public static get NO_TOKEN() { return '没有Token'; }
     public static get TOKEN_ERROR() {
