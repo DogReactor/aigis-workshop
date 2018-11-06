@@ -79,6 +79,7 @@ export function splitToSections(rawText: { name: string, text: string }, remarks
         const segs = rawText.text.split('\r\n\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
         const descMap = new Map();
         segs.forEach(seg => {
+            seg = seg.trim();
             if (seg.startsWith('＠')) {
                 const name = seg.split('\r\n')[0].split('＠')[1];
                 const talk = seg.split('\r\n').slice(1).join('\r\n');
