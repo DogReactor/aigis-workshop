@@ -5,12 +5,12 @@ import { map } from 'rxjs/operators';
 import { parseAL, AL } from 'aigis-fuel';
 import { CreateSectionDto } from '../dto/assets.dto';
 
-export async function getFileList(fileListMark, httpService: HttpService): Promise<Array<[string, string]>> {
+export async function getFileList(fileListMark, httpService: HttpService) {
     const fileListPostfix = {
         N: '/2iofz514jeks1y44k7al2ostm43xj085',
         R: '/1fp32igvpoxnb521p9dqypak5cal0xv0',
     };
-    const fileList: Array<[string, string]> = [];
+    const fileListObj: any = {};
     for (const flag of Object.keys(fileListPostfix)) {
         try {
             const fileListPath = fileListMark + fileListPostfix[flag];
@@ -22,18 +22,18 @@ export async function getFileList(fileListMark, httpService: HttpService): Promi
             csvData.forEach(line => {
                 const d = line.split(',');
                 if (d[4]) {
-                    fileList.push([d[4], '/' + d[0] + '/' + d[1]]);
+                    fileListObj[d[4]] = `/${d[0]}/${d[1]}`;
                 }
             });
         } catch (err) {
             console.log('Err in fetching files list:\n', err);
         }
     }
-    return Promise.resolve(fileList);
+    return fileListObj;
 }
 
 export async function fetchFile(fileName: string, refPath: string, httpService: HttpService):
-                Promise<Array<{ name: string, text: string, fileType: FileType }>> {
+    Promise<Array<{ name: string, text: string, fileType: FileType }>> {
     try {
         const fileBuffer = await downloadAsset(refPath, httpService);
         const al = parseAL(fileBuffer);
@@ -70,9 +70,9 @@ export function splitToSections(rawText: { name: string, text: string }, remarks
         descMap.forEach((v, k) => sections.push(new CreateSectionDto(k, v)));
     }
     else if (/^BattleTalkEvent/.test(rawText.name)) {
-        const lines = rawText.text.split('\r\n').filter(e => e !== String.fromCharCode(65279)).slice(1);
+        const lines = rawText.text.split('\r\n').filter(e => e !== String.fromCharCode(65279));
         for (let i = 0; i < lines.length; i += 2) {
-            sections.push(new CreateSectionDto(lines[0], `*${lines[i + 1]}*`));
+            sections.push(new CreateSectionDto(lines[i], `*${lines[i + 1]}*`));
         }
     }
     else if (/^Harlem[a-zA-Z]?Text/.test(rawText.name)) {
@@ -127,7 +127,8 @@ function takeText(fileName: string, ALData: AL): Array<{ name: string, text: str
                     rawTexts.push({
                         name: path.join(path.basename(fileName, '.aar'), subAAR.Name),
                         text: subAAR.Content.Content,
-                         fileType: FileType.TXT });
+                        fileType: FileType.TXT,
+                    });
                 }
             }
             filterFutile();
