@@ -10,7 +10,12 @@ export class AssetsController {
 
     @Post('update') // 更新数据库文件
     async updateFiles(@Body() updateCommand: UpdateCommand): Promise<string> {
-        return await this.assetsService.updateWeekly(updateCommand);
+        try {
+            return await this.assetsService.updateWeekly(updateCommand);
+        } catch (ex) {
+            throw new HttpException(ex, 400);
+        }
+
     }
 
     // 提交工作
@@ -21,13 +26,19 @@ export class AssetsController {
         try {
             return await this.assetsService.submitWork(submitedWork);
         } catch (ex) {
+            console.log('err', ex);
             throw new HttpException(ex, 400);
         }
     }
     @Get('sections')
-    async getSections(@Body('user') user: User, @Query('skip', new ParseIntPipe()) skip: number, @Query('limit', new ParseIntPipe()) limit: number) {
+    async getSections(
+        @Body('user') user: User,
+        @Query('skip', new ParseIntPipe()) skip: number,
+        @Query('limit', new ParseIntPipe()) limit: number,
+        @Query('filter', new ParseIntPipe()) filter: number,
+    ) {
         try {
-            return await this.assetsService.getSectionsByUser(user._id, skip, limit);
+            return await this.assetsService.getSectionsByUser(user._id, skip, limit, filter);
         } catch (ex) {
             throw new HttpException(ex, 400);
         }

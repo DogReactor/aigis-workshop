@@ -11,6 +11,6 @@ export interface FileRequest {
 }
 
 export interface SubmitWork {
-    works: Array<{ sectionId: string, text: string, originId: string, type: SectionStatus, polished: boolean }>;
+    works: Array<{ sectionId: string, text: string, originId: string, type: SectionStatus, polished?: boolean }>;
     userId?: string;
 }

@@ -31,17 +31,9 @@ export const SectionSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         default: null,
     },
-    translated: {
-        type: Boolean,
-        default: false,
-    },
-    corrected: {
-        type: Boolean,
-        default: false,
-    },
-    polished: {
-        type: Boolean,
-        default: false,
+    status: {
+        type: Number,
+        default: 0,
     },
     motified: {
         type: Boolean,
@@ -131,13 +123,13 @@ SectionSchema.methods.addCommit = async function (this: Section, commit: CreateC
     let updateType = null;
     switch (commitDoc.type) {
         case SectionStatus.Translated:
-            if (!this.translated) { updateType = 'translated'; this.translated = true; }
+            if (this.status < SectionStatus.Translated) { updateType = 'translated'; this.status = SectionStatus.Translated; }
             break;
         case SectionStatus.Corrected:
-            if (!this.corrected) { updateType = 'corrected'; this.corrected = true; }
+            if (this.status < SectionStatus.Corrected) { updateType = 'corrected'; this.status = SectionStatus.Corrected; }
             break;
         case SectionStatus.Polished:
-            if (!this.polished) { updateType = 'polished'; this.polished = true; }
+            if (this.status < SectionStatus.Polished) { updateType = 'polished'; this.status = SectionStatus.Polished; }
             this.lastUpdated = (new Date()).getTime();
             this.lastPolishCommit = commitDoc._id;
             break;
@@ -176,7 +168,11 @@ SectionSchema.statics.hasSection = async function (this: SectionModel, hash: str
 
 SectionSchema.statics.createSection = async function (this: SectionModel, sectionDto: CreateSectionDto) {
     const section = new this(sectionDto) as Section;
-    await section.save();
+    try {
+        await section.save();
+    } catch (err) {
+        return null;
+    }
     const commitDoc = await section.addCommit({
         text: sectionDto.originText,
         time: (new Date()).getTime(),

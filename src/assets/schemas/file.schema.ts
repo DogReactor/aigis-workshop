@@ -47,8 +47,12 @@ FileSchema.statics.createFile = async function (this: FileModel, file: CreateFil
     if (doc === null) doc = new this(file);
     doc.lastUpdated = (new Date()).getTime();
     doc.assetsPath = file.assetsPath;
-    await doc.save();
-    return doc;
+    try {
+        await doc.save();
+        return doc;
+    } catch (err) {
+        return null;
+    }
 };
 
 FileSchema.methods.getPublishedText = async function (this: File) {
@@ -66,8 +70,6 @@ FileSchema.methods.getPublishedText = async function (this: File) {
 FileSchema.methods.mergeSections = async function (this: File, sections: Array<CreateSectionDto>) {
     this.lastUpdated = (new Date()).getTime();
     let count = 0;
-    let newFile = false;
-    if (this.sections.length === 0) newFile = true;
     for (const sectionDto of sections) {
         // 尝试加入section
         let add = false;
@@ -77,17 +79,21 @@ FileSchema.methods.mergeSections = async function (this: File, sections: Array<C
         let section = await (this.model('section') as any as SectionModel).hasSection(sectionDto.hash);
         if (!section) {
             section = await (this.model('section') as any as SectionModel).createSection(sectionDto);
+            if (!section) {
+                // console.log('迷之重复错误', sectionDto.originText);
+                return;
+            }
             add = true;
         } else {
-            if (newFile || !this.sections.find(v => sectionDto.hash === v)) {
+            if (!this.sections.find(v => sectionDto.hash === v)) {
                 add = true;
             }
         }
         if (add) {
             this.sections.push(section.hash);
-            if (section.translated) this.translated++;
-            if (section.corrected) this.corrected++;
-            if (section.polished) this.polished++;
+            if (section.status >= 1) this.translated++;
+            if (section.status >= 2) this.corrected++;
+            if (section.status >= 3) this.polished++;
             count++;
             // section那边加上文件的信息，保证同步
             section.parent.push(this._id);
