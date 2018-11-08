@@ -21,3 +21,4 @@ yarn.lock
 test/
 raw_repo
 docs
+public
