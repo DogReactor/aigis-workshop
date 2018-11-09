@@ -91,12 +91,12 @@ export function splitToSections(rawText: { name: string, text: string }, remarks
         });
         descMap.forEach((v, k) => sections.push(new CreateSectionDto(k, v)));
     }
-    else if (remarks && /^StatusText/.test(rawText.name) && remarks.hasOwnProperty('CardsInfo')) {
+    else if (remarks && /^StatusText/.test(rawText.name) && remarks.hasOwnProperty('Flavor')) {
         const lines = rawText.text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
         const desc = lines.map(l => '');
-        remarks.CardsInfo.Flavor.forEach(e => {
+        remarks.Flavor.forEach(e => {
             for (let i = e.StartIndex; i < e.EndIndex; ++i) {
-                desc[i] = `*${e.Name}*`;
+                desc[i] += `*${e.Name}*`;
             }
         });
         lines.forEach((l, i) => {

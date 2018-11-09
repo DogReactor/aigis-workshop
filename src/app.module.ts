@@ -3,6 +3,7 @@ import { AssetsModule } from './assets/assets.module';
 import { UsersModule } from './users/users.module';
 import { TokenVerifyMiddleware } from './core/tokenVerify.middleware';
 import { CoreModule } from './core/core.module';
+import { CommonController } from './assets/common.controller';
 
 @Module({
   imports: [
@@ -10,6 +11,7 @@ import { CoreModule } from './core/core.module';
     UsersModule,
     CoreModule,
   ],
+  controllers: [CommonController],
 
 })
 export class AppModule implements NestModule {

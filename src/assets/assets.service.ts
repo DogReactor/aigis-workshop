@@ -177,7 +177,7 @@ export class AssetsService {
         if (updateLock) return;
         this.fileListVersion = this.fileListVersion || (await this.ArchivesModel.getArchive(new CreateArchiveDto('file-list'))).path;
         if (this.fileListVersion === updateCommand.fileListMark) {
-            return Promise.reject('files all are unchanged');
+            return Promise.resolve('files all are unchanged');
         }
         updateLock = true;
         const init = (new Date()).getTime();
