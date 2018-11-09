@@ -6,6 +6,7 @@ import { join } from 'path';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.setGlobalPrefix('api');
   app.use(compression());
   app.use(cors());
   app.useStaticAssets(join(__dirname, '..', 'public'));
