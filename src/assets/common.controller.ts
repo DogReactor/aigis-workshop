@@ -20,18 +20,5 @@ export class CommonController {
         } catch (ex) {
             throw new HttpException(ex, 400);
         }
-
-    }
-
-    @Post('update_quest')
-    async updateQuest(@Body() coomand: string): Promise<string> {
-        try {
-            const updateCommand = JSON.parse(fs.readFileSync('D:/Lab/Aigis/aigis-workshop/test/UnitInfo.json', 'utf8'));
-            await this.collectionService.updateIndex(updateCommand.remarks);
-            return 'ok';
-        } catch (ex) {
-            throw new HttpException(ex, 400);
-        }
-
     }
 }
