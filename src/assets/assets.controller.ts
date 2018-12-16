@@ -94,4 +94,12 @@ export class AssetsController {
             throw new HttpException(ex, 400);
         }
     }
+    @Get('file/collections') // 圈文运动 by 集合
+    async getCollections() {
+        try {
+            return await this.assetsService.getCollections();
+        } catch (ex) {
+            throw new HttpException(ex, 400);
+        }
+    }
 }

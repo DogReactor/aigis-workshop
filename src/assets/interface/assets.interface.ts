@@ -1,5 +1,5 @@
 import { Document, Model, Types } from 'mongoose';
-import { CreateSectionDto, CreateFileDto, CreateCommitDto, CreateArchiveDto } from '../dto/assets.dto';
+import { CreateSectionDto, CreateFileDto, CreateCommitDto, CreateArchiveDto, CreateCollectionDto } from '../dto/assets.dto';
 import { ObjectID, ObjectId } from 'bson';
 import { SectionStatus, FileType } from '../../constants';
 
@@ -80,6 +80,18 @@ export interface File extends Document {
   contractSections(user: string, count: number): Promise<File>;
   getContractedSections(user: string): Promise<Section[]>;
 }
+
 export interface FileModel extends Model<File> {
   createFile(file: CreateFileDto, force?: boolean): Promise<File | null>;
+}
+
+export interface CollectionDoc extends Document {
+  token: string;
+  name: string;
+  type: string;
+  sectionPointers: [{ file: string; index: number[] }];
+}
+
+export interface CollectionModel extends Model<CollectionDoc> {
+  createCollection(file: CreateCollectionDto, force?: boolean): Promise<CollectionDoc | null>;
 }

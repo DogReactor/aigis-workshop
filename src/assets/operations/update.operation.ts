@@ -1,59 +1,10 @@
 import * as path from 'path';
 import { FileType } from '../../constants';
-import { HttpService } from '@nestjs/common';
-import { map } from 'rxjs/operators';
-import { parseAL, AL } from 'aigis-fuel';
+import { AL } from 'aigis-fuel';
 import { CreateSectionDto } from '../dto/assets.dto';
 
-export async function getFileList(fileListMark, httpService: HttpService) {
-    const fileListPostfix = {
-        N: '/2iofz514jeks1y44k7al2ostm43xj085',
-        R: '/1fp32igvpoxnb521p9dqypak5cal0xv0',
-    };
-    const fileListObj: any = {};
-    for (const flag of Object.keys(fileListPostfix)) {
-        try {
-            const fileListPath = fileListMark + fileListPostfix[flag];
-            const csvBuffer = await downloadAsset(fileListPath, httpService);
-            const key = 0xea ^ 0x30;
-            let csvString = '';
-            csvBuffer.forEach(b => csvString += String.fromCharCode(b ^ key));
-            const csvData = csvString.split('\n');
-            csvData.forEach(line => {
-                const d = line.split(',');
-                if (d[4]) {
-                    fileListObj[d[4]] = `/${d[0]}/${d[1]}`;
-                }
-            });
-        } catch (err) {
-            console.log('Err in fetching files list:\n', err);
-        }
-    }
-    return fileListObj;
-}
 
-export async function fetchFile(fileName: string, refPath: string, httpService: HttpService):
-    Promise<Array<{ name: string, text: string, fileType: FileType }>> {
-    try {
-        const fileBuffer = await downloadAsset(refPath, httpService);
-        const al = parseAL(fileBuffer);
-        const texts = await takeText(fileName, al);
-        return texts;
-    } catch (err) {
-        console.log('Failed in fetching: ', err);
-        return Promise.reject(err);
-    }
-}
 
-async function downloadAsset(filePath, httpService: HttpService): Promise<Buffer> {
-    const reqOption = {
-        method: 'GET',
-        url: filePath,
-        baseURL: 'http://assets.millennium-war.net/',
-        responseType: 'arraybuffer',
-    };
-    return httpService.request(reqOption).pipe(map(r => r.data)).toPromise();
-}
 
 export function splitToSections(rawText: { name: string, text: string }, remarks: any): Array<CreateSectionDto> {
     let sections: Array<CreateSectionDto> = [];
@@ -91,18 +42,6 @@ export function splitToSections(rawText: { name: string, text: string }, remarks
         });
         descMap.forEach((v, k) => sections.push(new CreateSectionDto(k, v)));
     }
-    else if (remarks && /^StatusText/.test(rawText.name) && remarks.hasOwnProperty('Flavor')) {
-        const lines = rawText.text.split('\r\n').filter(e => e !== '' && e !== String.fromCharCode(65279));
-        const desc = lines.map(l => '');
-        remarks.Flavor.forEach(e => {
-            for (let i = e.StartIndex; i < e.EndIndex; ++i) {
-                desc[i] += `*${e.Name}*`;
-            }
-        });
-        lines.forEach((l, i) => {
-            sections.push(new CreateSectionDto(l, desc[i]));
-        });
-    }
     else {
         sections = rawText.text.split('\r\n')
             .filter(e => e !== '' && e !== String.fromCharCode(65279))
@@ -111,7 +50,7 @@ export function splitToSections(rawText: { name: string, text: string }, remarks
     return sections;
 }
 
-function takeText(fileName: string, ALData: AL): Array<{ name: string, text: string, fileType: FileType }> {
+export function takeText(fileName: string, ALData: AL): Array<{ name: string, text: string, fileType: FileType }> {
     let rawTexts: Array<{ name: string, text: string, fileType: FileType }> = [];
     function filterFutile() {
         if (/^p.ev03/.test(fileName)) {

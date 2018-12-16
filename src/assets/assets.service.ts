@@ -3,9 +3,11 @@ import * as fs from 'fs-extra';
 import * as crypto from 'crypto';
 import { Constants, FileType, SectionStatus } from '../constants';
 import { SubmitWork, UpdateCommand } from './interface/service.interface';
-import { getFileList, fetchFile, splitToSections } from './operations/update.operation';
+import { splitToSections, takeText } from './operations/update.operation';
 import { CreateFileDto, CreateCommitDto, CreateArchiveDto } from './dto/assets.dto';
-import { ArchiveModel, FileModel, SectionModel } from './interface/assets.interface';
+import { ArchiveModel, FileModel, SectionModel, CollectionModel } from './interface/assets.interface';
+import { CollectionService } from './collection.service';
+import { DownloaderService } from './downloader.service';
 
 let updateLock = false;
 const requestFiles = [
@@ -43,10 +45,12 @@ function generateHash(text: string): string {
 export class AssetsService {
     private fileListVersion: string;
     constructor(
-        private readonly httpService: HttpService,
+        private readonly downloaderService: DownloaderService,
+        private readonly collectionService: CollectionService,
         @Inject(Constants.ArchivesModelToken) private readonly ArchivesModel: ArchiveModel,
         @Inject(Constants.FilesModelToken) private readonly filesModel: FileModel,
         @Inject(Constants.SectionsModelToken) private readonly sectionsModel: SectionModel,
+        @Inject(Constants.CollectionsModelToken) private readonly collectionsModel: CollectionModel,
     ) { }
 
     async getFile(id: string) {
@@ -131,6 +135,14 @@ export class AssetsService {
         }
     }
 
+    async getCollections() {
+        const collects = await this.collectionsModel.find().exec();
+        if (!collects) throw Constants.FILE_NOT_FOUND;
+        else {
+            return collects;
+        }
+    }
+
     async submitWork(submitedWork: SubmitWork) {
         const errorList: {
             section: string,
@@ -182,7 +194,7 @@ export class AssetsService {
         updateLock = true;
         const init = (new Date()).getTime();
         try {
-            const fileList = await getFileList(updateCommand.fileListMark, this.httpService);
+            const fileList = await this.downloaderService.updateFilelist(updateCommand.fileListMark);
             let count = 0;
             const updatePromises = [];
             for (const fileName of Object.keys(fileList)) {
@@ -198,7 +210,8 @@ export class AssetsService {
                         return Promise.resolve('not need updating');
                     }
                     try {
-                        const rawTexts = await fetchFile(fileName, filePath, this.httpService);
+                        const asset = await this.downloaderService.fetchFile(fileName);
+                        const rawTexts = takeText(fileName, asset);
                         let cAchive = 0;
                         for (const rawText of rawTexts) {
                             const cA = cAchive;
@@ -228,10 +241,9 @@ export class AssetsService {
                         return Promise.resolve('ok');
                     }
                     catch (err) {
-                        fs.appendFile('update.err',
-                            `Failed in updating ${fileName}, path ${filePath},  ${(new Date()).toDateString()}\r\n`,
+                        fs.appendFile('update.file.err',
+                            `Failed in updating ${fileName}, path: ${filePath},  ${(new Date()).toDateString()}\r\n`,
                             { flag: 'a+' });
-                        return Promise.reject(err);
                     }
                 };
                 updatePromises.push(_promise);
@@ -243,7 +255,8 @@ export class AssetsService {
             fileListInfo.save();
             const end = (new Date()).getTime();
             updateLock = false;
-            console.log(end - init);
+            console.log('Files updated, time cost: ', end - init);
+            this.collectionService.updateIndex(updateCommand.remarks);
         } catch (err) {
             console.log('Failed in updating\n', err);
             throw Constants.FAILED_UPDATE;

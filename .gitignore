@@ -22,3 +22,6 @@ test/
 raw_repo
 docs
 public
+package-lock.json
+update.err
+*.err
