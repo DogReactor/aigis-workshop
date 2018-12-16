@@ -29,3 +29,11 @@ export class CreateSectionDto {
 export class CreateArchiveDto {
     constructor(public dlName, public files: Array<string> = [], public path: string = '') { }
 }
+
+export class CreateCollectionDto {
+    constructor(public token: string,
+                public name: string,
+                public type: string,
+                public sectionPointers: any[],
+                ) { }
+}

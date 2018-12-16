@@ -18,6 +18,7 @@ export class Constants {
     public static get UserModelToken() { return 'UserModelToken'; }
     public static get ArchivesModelToken() { return 'ArchivesModelToken'; }
     public static get FilesModelToken() { return 'FilesModelToken'; }
+    public static get CollectionsModelToken() { return 'CollectionsModelToken'; }
     public static get DbConnectionToken() { return 'DbConnectionToken'; }
     public static get SectionsModelToken() {
         return 'SectionsModelToken';

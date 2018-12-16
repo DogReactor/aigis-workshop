@@ -3,6 +3,8 @@ import { CoreModule } from '../core/core.module';
 import { AssetsController } from './assets.controller';
 import { AssetsService } from './assets.service';
 import { AssetsProviders } from './assets.provider';
+import { CollectionService } from './collection.service';
+import { DownloaderService } from './downloader.service';
 
 @Module({
     imports: [
@@ -11,10 +13,14 @@ import { AssetsProviders } from './assets.provider';
     ],
     providers: [
         AssetsService,
+        CollectionService,
+        DownloaderService,
         ...AssetsProviders,
     ],
     exports: [
         AssetsService,
+        CollectionService,
+        DownloaderService,
         ...AssetsProviders,
     ],
     controllers: [
