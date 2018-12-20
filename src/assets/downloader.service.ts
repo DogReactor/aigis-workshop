@@ -12,6 +12,7 @@ const cachePath = './cache';
 export class DownloaderService {
     private fileList: any;
     private fileListMark: string = '';
+    private cachedFiles: string[] = [];
     constructor(
         private readonly httpService: HttpService,
     ) {
@@ -61,6 +62,7 @@ export class DownloaderService {
         }
         this.fileList = fileListObj;
         this.fileListMark = fileListMark;
+        this.cachedFiles = [];
         fs.writeFile(path.join(cachePath, 'file_list.json'), JSON.stringify(this.fileList), (err) => {
             if (err) {
                 console.log(err);
@@ -72,7 +74,20 @@ export class DownloaderService {
     async fetchFile(fileName: string): Promise<AL> {
         try {
             const dlpath = this.fileList[fileName];
-            const fileBuffer = await this.downloadAsset(dlpath);
+            const filecache = path.join(cachePath, dlpath.split('/').join('.'));
+            let fileBuffer = null;
+            if (this.cachedFiles.find(e => e === dlpath)) {
+                fileBuffer = fs.readFileSync(filecache);
+            } else {
+                fileBuffer = await this.downloadAsset(dlpath);
+                fs.writeFile(filecache, fileBuffer, (err) => {
+                    if (err) {
+                        console.log(err);
+                    } else {
+                        this.cachedFiles.push(dlpath);
+                    }
+                });
+            }
             const al = parseAL(fileBuffer);
             return al;
         } catch (err) {
