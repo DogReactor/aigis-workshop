@@ -266,8 +266,7 @@ export class AssetsService {
     async collectFiles(updateCommand: UpdateCommand) {
         try {
             await this.downloaderService.updateFilelist(updateCommand.fileListMark);
-            this.collectionService.updateIndex(updateCommand.remarks);
-            return 'ok';
+            return await this.collectionService.updateIndex(updateCommand.remarks);
         } catch (err) {
             return Promise.reject(err);
         }
