@@ -18,13 +18,14 @@ CollectionSchema.index({ token: 1 }, { unique: true });
 CollectionSchema.statics.createCollection = async function (this: CollectionModel, file: CreateCollectionDto, force?: boolean) {
     let doc = await this.findOne({ token: file.token }).exec();
     try {
-        if (doc.sectionPointers.length >= file.sectionPointers.length) {
-            return doc;
-        } else if (doc) {
-            return await this.updateOne({ token: file.token }, file).exec();
-        } else {
+        if (!doc) {
             doc = new this(file);
             return await doc.save();
+        }
+        else if (doc.sectionPointers.length >= file.sectionPointers.length) {
+            return doc;
+        } else {
+            return await this.updateOne({ token: file.token }, file).exec();
         }
     } catch (err) {
         return Promise.reject(err);
