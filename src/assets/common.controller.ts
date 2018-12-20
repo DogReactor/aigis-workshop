@@ -21,4 +21,12 @@ export class CommonController {
             throw new HttpException(ex, 400);
         }
     }
+    @Post('collect') // 更新数据库文件
+    async collectFiles(@Body() updateCommand: UpdateCommand): Promise<string> {
+        try {
+            return await this.assetsService.collectFiles(updateCommand);
+        } catch (ex) {
+            throw new HttpException(ex, 400);
+        }
+    }
 }

@@ -12,6 +12,7 @@ const cachePath = './cache';
 export class DownloaderService {
     private fileList: any;
     private cachedFiles: string[] = [];
+    private fileListMark: string = '';
     constructor(
         private readonly httpService: HttpService,
     ) {
@@ -37,6 +38,9 @@ export class DownloaderService {
             N: '/2iofz514jeks1y44k7al2ostm43xj085',
             R: '/1fp32igvpoxnb521p9dqypak5cal0xv0',
         };
+        if(this.fileListMark === fileListMark) {
+            return 'List has been updated';
+        }
         const fileListObj: any = {};
         for (const flag of Object.keys(fileListPostfix)) {
             try {
@@ -57,6 +61,7 @@ export class DownloaderService {
             }
         }
         this.fileList = fileListObj;
+        this.fileListMark = fileListMark;
         this.cachedFiles = [];
         fs.writeFile(path.join(cachePath, 'file_list.json'), JSON.stringify(this.fileList), (err) => {
             if (err) {
