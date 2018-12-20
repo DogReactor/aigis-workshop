@@ -263,7 +263,15 @@ export class AssetsService {
         }
         return 'ok';
     }
-
+    async collectFiles(updateCommand: UpdateCommand) {
+        try {
+            await this.downloaderService.updateFilelist(updateCommand.fileListMark);
+            this.collectionService.updateIndex(updateCommand.remarks);
+            return 'ok';
+        } catch (err) {
+            return Promise.reject(err);
+        }
+    }
     // 我来实现
     async PackTranslations() { }
 }
