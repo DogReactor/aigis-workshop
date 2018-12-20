@@ -51,9 +51,6 @@ export class CollectionService {
         const names = (await this.downloaderService.fetchFile('NameText.atb')).Contents.map(n => n.Message);
         const skillList = (await this.downloaderService.fetchFile('SkillList.atb')).Contents;
 
-        const existUnitInfo = (await this.collectionsModel.find({ type: 'Unit' }).exec()) || [];
-        unitInfo = unitInfo.filter(u => !existUnitInfo.find(eu => eu.token.replace('Unit_', '') === u.CardID.toString()));
-
         for (const unit of unitInfo) {
             try {
                 let sectionPointers = [];
@@ -121,9 +118,6 @@ export class CollectionService {
             return Promise.reject(err);
         }
 
-        // 剔除已有的Quest
-        const existQuests = (await this.collectionsModel.find({ type: 'Quest' }).exec()) || [];
-        questInfo = questInfo.filter(q => !existQuests.find(eq => q.QuestID.toString() === eq.token.replace('Quest_', '')));
 
         for (const quest of questInfo) {
             try {
@@ -132,33 +126,34 @@ export class CollectionService {
                 if (!missionId) {
                     continue;
                 }
-                const QuestBaseName = (await this.downloaderService.fetchFile(`QuestNameText${missionId}.atb`)).Contents[quest.QuestTitle];
+                const QuestBaseName = (await this.downloaderService.fetchFile(`QuestNameText${missionId}.atb`)).Contents[quest.QuestTitle].Message;
                 const QuestName = missionNames.get(missionId) + '/' + QuestBaseName;
                 sectionPointers.push(new SectionPointer(`QuestNameText${missionId}.atb`, [quest.QuestTitle]));
                 sectionPointers.push(new SectionPointer(`MessageText${missionId}.atb`, [quest.QuestTitle]));
                 const entryNo = quest.EntryNo.toString().padStart(2, '0');
                 const mapEntry = (await this.downloaderService.fetchFile(`Map${quest.MapNo}.aar`)).
                     Files.find(e => e.Name === `Entry${entryNo}.atb`).Content.Contents;
-
-                const missionTalk = new MissionTalk(
-                    (await this.downloaderService.fetchFile(`BattleTalkEvent${missionId}.aar`)).Files
-                        .find(e => e.Name === 'BattleTalkEvent.atb').Content.Contents,
-                );
-
-                const BattleTalk = [
-                    new SectionPointer(`QuestEventText.atb`, []),
-                    new SectionPointer(`BattleTalkEvent${missionId}\\BattleTalkEvent.atb`, []),
-                ];
-                mapEntry.forEach(e => {
-                    if (e.EnemyID > 999 && e.EnemyID < 2000) {
-                        BattleTalk[0].index.push(e.EnemyID - 1000)
-                    }
-                    else if (e.EnemyID === 4201 && e.FreeCommand.includes('CallEvent')) {
-                        const locs = e.FreeCommand.replace('CallEvent(', '').replace(');', '').split(',').map(s => parseInt(s, 10));
-                        locs.forEach(offset => BattleTalk[1].index.push(missionTalk.getIndex(offset)));
-                    }
-                });
-                sectionPointers.concat(BattleTalk.filter(sp => sp.index.length > 0));
+                const talkFile = await this.downloaderService.fetchFile(`BattleTalkEvent${missionId}.aar`);
+                if (talkFile.Files) {
+                    const missionTalk = new MissionTalk(
+                        talkFile.Files
+                            .find(e => e.Name === 'BattleTalkEvent.atb').Content.Contents,
+                    );
+                    const BattleTalk = [
+                        new SectionPointer(`QuestEventText.atb`, []),
+                        new SectionPointer(`BattleTalkEvent${missionId}\\BattleTalkEvent.atb`, []),
+                    ];
+                    mapEntry.forEach(e => {
+                        if (e.EnemyID > 999 && e.EnemyID < 2000) {
+                            BattleTalk[0].index.push(e.EnemyID - 1000);
+                        }
+                        else if (e.EnemyID === 4201 && e.EntryCommand.includes('CallEvent')) {
+                            const locs = e.EntryCommand.replace('CallEvent(', '').replace(');', '').split(',').map(s => parseInt(s, 10));
+                            locs.forEach(offset => BattleTalk[1].index.push(missionTalk.getIndex(offset)));
+                        }
+                    });
+                    BattleTalk.filter(sp => sp.index.length > 0).forEach(b => sectionPointers.push(b));
+                }
                 this.collectionsModel.createCollection(
                     new CreateCollectionDto(`Quest_${quest.QuestID}`, QuestName, 'Quest', sectionPointers),
                 );
@@ -169,5 +164,6 @@ export class CollectionService {
                     { flag: 'a+' });
             }
         }
+        return 'ok';
     }
 }

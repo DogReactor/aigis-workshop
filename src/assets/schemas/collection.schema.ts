@@ -16,15 +16,18 @@ export const CollectionSchema = new mongoose.Schema({
 CollectionSchema.index({ token: 1 }, { unique: true });
 
 CollectionSchema.statics.createCollection = async function (this: CollectionModel, file: CreateCollectionDto, force?: boolean) {
-    let doc = null;
-    if (force) {
-        doc = await this.findOne({ token: file.token }).exec();
-    }
-    if (doc === null) doc = new this(file);
+    let doc = await this.findOne({ token: file.token }).exec();
     try {
-        await doc.save();
-        return doc;
+        if (doc.sectionPointers.length >= file.sectionPointers.length) {
+            return doc;
+        } else if (doc) {
+            return await this.updateOne({ token: file.token }, file).exec();
+        } else {
+            doc = new this(file);
+            return await doc.save();
+        }
     } catch (err) {
-        return null;
+        return Promise.reject(err);
     }
+
 };
