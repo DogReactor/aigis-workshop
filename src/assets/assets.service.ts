@@ -266,6 +266,7 @@ export class AssetsService {
             console.log('Failed in updating\n', err);
             throw Constants.FAILED_UPDATE;
         }
+        console.log('return ok');
         return 'ok';
     }
     async collectFiles(updateCommand: UpdateCommand) {
