@@ -186,9 +186,14 @@ export class AssetsService {
 
     // 参考update.operations
     async updateWeekly(updateCommand: UpdateCommand) {
-        if (updateLock) return;
+        console.log('new UpdateCommand');
+        if (updateLock) {
+            console.log('Updating, return');
+            return;
+        }
         this.fileListVersion = this.fileListVersion || (await this.ArchivesModel.getArchive(new CreateArchiveDto('file-list'))).path;
         if (this.fileListVersion === updateCommand.fileListMark) {
+            console.log('files all are unchanged');
             return Promise.resolve('files all are unchanged');
         }
         updateLock = true;
