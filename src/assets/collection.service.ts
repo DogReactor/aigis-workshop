@@ -118,7 +118,6 @@ export class CollectionService {
             return Promise.reject(err);
         }
 
-
         for (const quest of questInfo) {
             try {
                 const sectionPointers = [];

@@ -7,26 +7,27 @@ import * as fs from 'fs';
 
 @Controller('common')
 export class CommonController {
-    constructor(
-        private readonly assetsService: AssetsService,
-        private readonly collectionService: CollectionService,
-        private readonly dlService: DownloaderService,
-    ) { }
+  constructor(
+    private readonly assetsService: AssetsService,
+    private readonly collectionService: CollectionService,
+    private readonly dlService: DownloaderService,
+  ) {}
 
-    @Post('update') // 更新数据库文件
-    async updateFiles(@Body() updateCommand: UpdateCommand): Promise<string> {
-        try {
-            return await this.assetsService.updateWeekly(updateCommand);
-        } catch (ex) {
-            throw new HttpException(ex, 400);
-        }
+  @Post('update') // 更新数据库文件
+  async updateFiles(@Body() updateCommand: UpdateCommand): Promise<string> {
+    try {
+      console.log(updateCommand.fileListMark);
+      return await this.assetsService.updateWeekly(updateCommand);
+    } catch (ex) {
+      throw new HttpException(ex, 400);
     }
-    @Post('collect') // 更新数据库文件
-    async collectFiles(@Body() updateCommand: UpdateCommand): Promise<string> {
-        try {
-            return await this.assetsService.collectFiles(updateCommand);
-        } catch (ex) {
-            throw new HttpException(ex, 400);
-        }
+  }
+  @Post('collect') // 更新数据库文件
+  async collectFiles(@Body() updateCommand: UpdateCommand): Promise<string> {
+    try {
+      return await this.assetsService.collectFiles(updateCommand);
+    } catch (ex) {
+      throw new HttpException(ex, 400);
     }
+  }
 }
