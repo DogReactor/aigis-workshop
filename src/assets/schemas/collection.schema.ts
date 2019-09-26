@@ -15,7 +15,7 @@ export const CollectionSchema = new mongoose.Schema({
 
 CollectionSchema.index({ token: 1 }, { unique: true });
 
-CollectionSchema.statics.createCollection = async function (this: CollectionModel, file: CreateCollectionDto, force?: boolean) {
+CollectionSchema.statics.createNewCollection = async function (this: CollectionModel, file: CreateCollectionDto, force?: boolean) {
     let doc = await this.findOne({ token: file.token }).exec();
     try {
         if (!doc) {

@@ -288,6 +288,7 @@ export class AssetsService {
               `Failed in updating ${fileName}, path: ${filePath},  ${new Date().toDateString()}\r\n`,
               { flag: 'a+' },
             );
+            throw err;
           }
         };
         updatePromises.push(_promise);
@@ -302,7 +303,7 @@ export class AssetsService {
       const end = new Date().getTime();
       updateLock = false;
       console.log('Files updated, time cost: ', end - init);
-      this.collectionService.updateIndex(updateCommand.remarks);
+      await this.collectionService.updateIndex(updateCommand.remarks);
     } catch (err) {
       updateLock = false;
       console.log('Failed in updating\n', err);
