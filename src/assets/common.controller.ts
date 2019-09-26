@@ -1,9 +1,10 @@
-import { Controller, Post, Body, HttpException } from '@nestjs/common';
+import { Controller, Post, Body, HttpException, Req } from '@nestjs/common';
 import { UpdateCommand } from './interface/service.interface';
 import { AssetsService } from './assets.service';
 import { CollectionService } from './collection.service';
 import { DownloaderService } from './downloader.service';
 import * as fs from 'fs';
+import { Request } from 'express';
 
 @Controller('common')
 export class CommonController {
@@ -14,9 +15,12 @@ export class CommonController {
   ) {}
 
   @Post('update') // 更新数据库文件
-  async updateFiles(@Body() updateCommand: UpdateCommand): Promise<string> {
+  async updateFiles(
+    @Body() updateCommand: UpdateCommand,
+    @Req() req: Request,
+  ): Promise<string> {
     try {
-      console.log(updateCommand.fileListMark);
+      console.log(updateCommand, req.headers);
       return await this.assetsService.updateWeekly(updateCommand);
     } catch (ex) {
       throw new HttpException(ex, 400);

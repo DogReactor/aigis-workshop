@@ -93,5 +93,5 @@ export interface CollectionDoc extends Document {
 }
 
 export interface CollectionModel extends Model<CollectionDoc> {
-  createCollection(file: CreateCollectionDto, force?: boolean): Promise<CollectionDoc | null>;
+  createNewCollection(file: CreateCollectionDto, force?: boolean): Promise<CollectionDoc | null>;
 }

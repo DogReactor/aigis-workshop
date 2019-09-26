@@ -90,7 +90,7 @@ export class CollectionService {
                     }
                 }
 
-                this.collectionsModel.createCollection(
+                this.collectionsModel.createNewCollection(
                     new CreateCollectionDto(`Unit_${unit.CardID}`, names[unit.CardID - 1], 'Unit', sectionPointers),
                 );
             } catch (err) {
@@ -153,7 +153,7 @@ export class CollectionService {
                     });
                     BattleTalk.filter(sp => sp.index.length > 0).forEach(b => sectionPointers.push(b));
                 }
-                this.collectionsModel.createCollection(
+                this.collectionsModel.createNewCollection(
                     new CreateCollectionDto(`Quest_${quest.QuestID}`, QuestName, 'Quest', sectionPointers),
                 );
             } catch (err) {
