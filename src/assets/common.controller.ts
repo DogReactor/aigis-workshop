@@ -20,7 +20,6 @@ export class CommonController {
     @Req() req: Request,
   ): Promise<string> {
     try {
-      console.log(updateCommand, req.headers);
       return await this.assetsService.updateWeekly(updateCommand);
     } catch (ex) {
       throw new HttpException(ex, 400);

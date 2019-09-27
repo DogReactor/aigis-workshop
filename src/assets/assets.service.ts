@@ -210,10 +210,10 @@ export class AssetsService {
   // 参考update.operations
   async updateWeekly(updateCommand: UpdateCommand) {
     if (updateLock) return;
-    this.fileListVersion =
-      this.fileListVersion ||
-      (await this.ArchivesModel.getArchive(new CreateArchiveDto('file-list')))
-        .path;
+    if (updateCommand.fileListMark === undefined) return;
+    this.fileListVersion = (await this.ArchivesModel.getArchive(
+      new CreateArchiveDto('file-list'),
+    )).path;
     if (this.fileListVersion === updateCommand.fileListMark) {
       return Promise.resolve('files all are unchanged');
     }
@@ -299,6 +299,7 @@ export class AssetsService {
         dlName: 'file-list',
       }).exec();
       fileListInfo.path = updateCommand.fileListMark;
+      fileListInfo.markModified('path');
       fileListInfo.save();
       const end = new Date().getTime();
       updateLock = false;
